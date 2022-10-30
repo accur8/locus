@@ -1,0 +1,33 @@
+
+
+composite Repository {
+
+@scalaModel(
+    dataMixin = "DataMixins.RepositoryMixin",
+    companionDataMixin = "DataMixins.RepositoryObjectMixin",
+)
+
+@sqltable(
+      name=locus_repository,
+      auditlog=true)
+
+@cube(sqlTableName="locus_repository")
+
+@sqlIndexes(value="unique organizationUid_name (organizationUid name)")
+
+@lookbiqlVisual(value=name)
+
+uid              Uid @key @required @field(extraConfig = """{"autoGenerator":{"length":32,"type":"uid"}}""")
+                        { ~scala { "Data.Repository.Uid" @default('Data.Repository.Uid.random()') } }
+                        ;
+
+organizationUid  Organization @required @fetch(organization) @field(label = Organization);
+name             Name @required;
+kind             RepositoryKind @required;
+packageKind      PackageKind @required;
+visible          Visible @field(extraConfig = """{"defaultValue":true}""");
+extraConfig      ExtraConfig @nullable;
+audit_version    long @nullable @readonly { ~scala { @default(None) }};
+audit_userGroupUid  UserGroupUid @nullable @readonly { ~scala { @default(None) }};
+
+}

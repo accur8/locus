@@ -1,0 +1,32 @@
+
+
+composite RepositoryEvent {
+
+@scalaModel(
+    dataMixin = "DataMixins.RepositoryEventMixin",
+    companionDataMixin = "DataMixins.RepositoryEventObjectMixin"
+)
+
+@sqltable(name=locus_repositoryevent)
+
+@cube(sqlTableName="locus_repositoryevent")
+
+@sqlIndexes(
+      value="index repositoryUid (repositoryUid)",
+      value="index kind (kind)")
+
+uid              Uid @key @required @field(extraConfig = """{"autoGenerator":{"length":32,"type":"uid"}}""")
+                        { ~scala { "Data.RepositoryEvent.Uid" @default('Data.RepositoryEvent.Uid.random()') } }
+                        ;
+
+repositoryUid    Repository @required @fetch(repository) @field(label = Repository);
+kind             EventKind @required;
+path             text @required;
+userGroupUid     UserGroupUid @required;
+size             long @required;
+ipAddress        varchar(50) @nullable;
+userAgent        text @nullable;
+created          timestamp { ~sql { @default(CURRENT_TIMESTAMP) }};
+extraConfig      ExtraConfig @nullable;
+
+}

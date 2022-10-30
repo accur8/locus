@@ -1,0 +1,58 @@
+primitive long {
+  @useQubesDataType(number)
+  ~sql { bigint }
+  ~scala { Long }
+}
+
+primitive text {
+  @useQubesDataType(text)
+  ~scala { String }
+}
+
+primitive timestamp {
+  @useQubesDataType(timestamp)
+  ~scala { "DateTime" }
+}
+
+primitive varchar(_) {
+  @useQubesDataType(text)
+  ~scala { String }
+}
+
+primitive ExtraConfig {
+  @useQubesDataType(ExtraConfig)
+  ~sql {
+    ~postgres { jsonb @nullable @default("""'{}'""")}
+  }
+  ~scala { Json @default('None') }
+}
+
+primitive Json {
+  @useQubesDataType(Json)
+  ~sql { ~postgres { jsonb } }
+  ~scala { Json }
+}
+
+primitive Name {
+  @useQubesDataType(text)
+  ~sql { varchar(50) }
+  ~scala { String }
+}
+
+primitive Uid {
+  @qubeField(extraConfig='''{"autoGenerator":{"type":"uid", length=32}}''')
+  ~sql { varchar(32) }
+  ~scala { "a8.manna.model.Uid" @default('Uid.random()') }
+}
+
+primitive UserGroupUid {
+  @qubeField(dataType="cube-Usergroup")
+  ~sql { varchar(32) }
+  ~scala { "a8.manna.model.Uid" }
+}
+
+primitive Visible {
+  @qubeField(dataType=Bool, extraConfig='''{"defaultValue": true}''')
+  ~sql { boolean @default(true) }
+  ~scala { Boolean  @default(true) }
+}

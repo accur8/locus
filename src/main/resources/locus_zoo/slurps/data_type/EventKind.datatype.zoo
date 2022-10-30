@@ -1,0 +1,28 @@
+
+primitive EventKind {
+
+@qubeDataType(
+    name = EventKind,
+    style = alignLeft,
+    extraConfig = """{
+  "widgetHint":"COMBOBOX",
+  "selectOptions":[
+    [
+      "get",
+      "Get"
+    ],[
+      "put",
+      "Put"
+    ],[
+      "delete",
+      "Delete"
+    ]
+  ],
+  "required":true
+}"""
+)
+
+~sql { varchar(10) }
+~scala { String }
+
+}

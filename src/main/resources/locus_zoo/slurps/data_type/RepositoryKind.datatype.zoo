@@ -1,0 +1,28 @@
+
+primitive RepositoryKind {
+
+@qubeDataType(
+    name = RepositoryKind,
+    style = alignLeft,
+    extraConfig = """{
+  "widgetHint":"COMBOBOX",
+  "selectOptions":[
+    [
+      "local",
+      "Local"
+    ],[
+      "remote",
+      "Remote"
+    ],[
+      "virtual",
+      "Virtual"
+    ]
+  ],
+  "required":true
+}"""
+)
+
+~sql { varchar(10) }
+~scala { String }
+
+}

@@ -1,0 +1,4 @@
+@AppSpaceAuth(
+    appSpace = locus,
+    group = LocusUser
+)

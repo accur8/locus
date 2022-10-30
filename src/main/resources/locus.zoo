@@ -1,0 +1,23 @@
+
+@qubeDatabase(name=qubes)
+@dataDatabase(name=locus, description=Locus)
+
+@scalaModel(
+    packageName="a8.locus.model",
+    snapshotMixin="a8.locus.model.SnapshotMixin",
+    dataOnly=true
+)
+@scalaImports("m3.jdbc.managed_mapper.type_wrappers.Json")
+@scalaImports("net.model3.chrono.DateTime")
+
+@config("""
+{
+    scalaModelOutputDirectory: "/Users/glen/code/accur8/build-tools/locus/src/main/scala/"
+    qubes: {
+        externalMaintainer="locus.zoo"
+    }
+    createTables: {
+        database="locus.database"
+    }
+}
+""")

@@ -1,0 +1,31 @@
+
+
+composite Organization {
+
+@scalaModel(
+    dataMixin = "DataMixins.OrganizationMixin",
+    companionDataMixin = "DataMixins.OrganizationObjectMixin"
+)
+
+@sqltable(
+      name=locus_organization,
+      auditlog=true)
+
+@cube(sqlTableName="locus_organization")
+
+@sqlIndexes(value="unique name (name)")
+
+@lookbiqlVisual(value=description)
+
+uid              Uid @key @required @field(extraConfig = """{"autoGenerator":{"length":32,"type":"uid"}}""")
+                        { ~scala { "Data.Organization.Uid" @default('Data.Organization.Uid.random()') } }
+                        ;
+
+name             Name @required;
+description      varchar(100) @required;
+visible          Visible @field(extraConfig = """{"defaultValue":true}""");
+extraConfig      ExtraConfig @nullable;
+audit_version    long @nullable @readonly { ~scala { @default(None) }};
+audit_userGroupUid  UserGroupUid @nullable @readonly { ~scala { @default(None) }};
+
+}

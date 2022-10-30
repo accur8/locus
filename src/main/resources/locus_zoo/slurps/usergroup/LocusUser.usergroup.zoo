@@ -1,0 +1,4 @@
+@UserGroup(
+    name = LocusUser,
+    description = "Locus User"
+)

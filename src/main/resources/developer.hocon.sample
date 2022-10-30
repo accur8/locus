@@ -1,0 +1,47 @@
+locus: {
+  server: {
+    s3: {
+//      accessKey: "enterMe",
+//      secretKey: "enterMe",
+    },
+    dataDirectory: "target/locus-data",
+    repos: [
+      {
+        _type: "multiplexer",
+        name: "all",
+        repos: ["libs-thirdparty-local", "libs-releases-local", "sbt-plugins", "maven2", "yahoo"]
+      },{
+        _type: "url",
+        name: "libs-thirdparty-local",
+        url: "s3://a8-artifacts/legacy/libs-thirdparty-local"
+      },{
+        _type: "url",
+        name: "libs-releases-local",
+        url: "s3://a8-artifacts/legacy/libs-releases-local"
+      },{
+        _type: "url",
+        name: "sbt-plugins",
+        url: "s3://a8-artifacts/legacy/sbt-plugins"
+      },{
+        _type: "url",
+        name: "maven2",
+        url: "https://repo1.maven.org/maven2/"
+      },{
+        _type: "url",
+        name: "yahoo",
+        url: "https://yahoo.bintray.com/maven"
+      },
+    ],
+    users: [
+      {
+        name: "reader",
+        password: "enterMe",
+      },{
+        name: "deployer",
+        password: "enterMe",
+      }
+    ]
+    port: 8080,
+    noCacheFiles: ["maven-metadata.xml"]
+  }
+}

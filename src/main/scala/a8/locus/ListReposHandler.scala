@@ -1,0 +1,139 @@
+package a8.locus
+
+import a8.locus.Config.{User, UserPrivilege}
+import a8.locus.Dsl.UrlPath
+import a8.locus.ResolvedModel.{ResolvedContent, ResolvedRepo}
+import a8.locus.SharedImports._
+import a8.shared.app.Logging
+import io.undertow.server.{HttpHandler, HttpServerExchange}
+import io.undertow.util.{Headers, StatusCodes}
+import org.slf4j.MDC
+
+case class ListReposHandler(resolvedModel: ResolvedModel) extends HttpHandler with Logging {
+
+  import UndertowAssist._
+
+  case class Request(
+    exchange: HttpServerExchange,
+    user: User,
+  )
+
+  lazy val methods: Map[CiString,Request=>HttpResponse] =
+    Iterable(
+      "GET" -> doGet _,
+    )
+      .map(t => CiString(t._1) -> t._2)
+      .toMap
+
+  def resolveUser(exchange: HttpServerExchange): Either[HttpResponse,User] = {
+
+    def requireAuthenticationResponse =
+      HttpResponse(
+        content = HttpResponseBody.empty,
+        statusCode = HttpStatusCode.NotAuthorized,
+        headers = Map(
+          HttpHeader.WWWAuthenticate -> s"""Basic realm="${resolvedModel.config.realm}""""
+        )
+      )
+
+    Option(exchange.getRequestHeaders.get("Authorization"))
+        .flatMap { headerValues =>
+          headerValues.iterator().asScala.flatMap(authenticate).nextOption()
+        }
+        .map(Right.apply)
+        .getOrElse(Left(requireAuthenticationResponse))
+
+  }
+
+  def authenticate(authenticateHeaderValue: String): Option[User] = {
+
+    authenticateHeaderValue.trim.splitList(" ", limit = 2) match {
+      case List("Basic", credentialsBase64) =>
+        val credentials = new String(java.util.Base64.getDecoder.decode(credentialsBase64))
+        credentials.splitList(":", limit = 2) match {
+          case List(user, password) =>
+            resolvedModel
+              .config
+              .users
+              .find(u => u.name =:= user && u.password =:= password)
+          case _ =>
+            None
+        }
+      case _ =>
+        None
+    }
+
+
+  }
+
+
+  def handleRequest(exchange: HttpServerExchange): Unit = {
+
+    if (exchange.isInIoThread()) {
+      if ( methods.contains(CiString(exchange.getRequestMethod.toString)) ) {
+        exchange.dispatch(this)
+      } else {
+        exchange.setStatusCode(StatusCodes.METHOD_NOT_ALLOWED)
+        exchange.endExchange()
+      }
+    } else {
+      exchange.startBlocking()
+
+      MDC.put("url", exchange.getRequestURL)
+
+      logger.debug(s"start ${exchange.getRequestMethod} ${exchange.getRequestURL}")
+
+      val response =
+        resolveUser(exchange) match {
+          case Left(httpResponse) =>
+            httpResponse
+          case Right(user) =>
+            val request = Request(exchange, user)
+            val methodHandler = methods(CiString(exchange.getRequestMethod.toString))
+            methodHandler(request)
+        }
+
+      try {
+
+        exchange.setStatusCode(response.statusCode)
+        response.headers.foreach( header =>
+          exchange.getResponseHeaders.add(header._1.httpString, header._2)
+        )
+        response.content.contentType.value.foreach(exchange.getResponseHeaders.add(Headers.CONTENT_TYPE, _))
+        response.content.withInputStream{ input =>
+          val output = exchange.getOutputStream
+          pipe(input, output)
+        }
+
+        logger.debug(s"completed ${exchange.getRequestMethod} ${response.statusCode.number} ${exchange.getRequestURL} ")
+
+      } catch {
+        case e: Exception =>
+          exchange.setStatusCode(500)
+          val msg = s"error processing ${exchange.getRequestURL}\n${e.stackTraceAsString}"
+          exchange.getResponseSender.send(msg)
+          logger.error(msg)
+
+      } finally {
+        exchange.endExchange()
+        MDC.clear()
+      }
+
+    }
+  }
+
+  def doGet(request: Request): HttpResponse = {
+
+    val repos = resolvedModel.resolvedProxyPaths
+    val repoLinks =
+      repos.map { repo =>
+        s"<a href='/repos/${repo.name.toString}/index.html'>${repo.name.toString}</a><br/>"
+      }
+
+    HttpResponse(
+      content = HttpResponseBody.html(s"""<html><body>${repoLinks.mkString("\n")}</body></html>""")
+    )
+
+  }
+
+}

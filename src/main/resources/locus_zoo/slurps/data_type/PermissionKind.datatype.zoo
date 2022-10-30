@@ -1,0 +1,25 @@
+
+primitive PermissionKind {
+
+@qubeDataType(
+    name = PermissionKind,
+    style = alignLeft,
+    extraConfig = """{
+  "widgetHint":"COMBOBOX",
+  "selectOptions":[
+    [
+      "read",
+      "Read"
+    ],[
+      "write",
+      "Write"
+    ]
+  ],
+  "required":true
+}"""
+)
+
+~sql { varchar(10) }
+~scala { String }
+
+}

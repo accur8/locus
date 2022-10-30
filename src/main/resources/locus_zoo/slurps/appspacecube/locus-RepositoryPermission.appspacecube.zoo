@@ -1,0 +1,4 @@
+@appSpaceCube(
+    appSpace = locus,
+    cube = RepositoryPermission
+)

@@ -1,0 +1,25 @@
+
+primitive PackageKind {
+
+@qubeDataType(
+    name = PackageKind,
+    style = alignLeft,
+    extraConfig = """{
+  "widgetHint":"COMBOBOX",
+  "selectOptions":[
+    [
+      "maven",
+      "Maven"
+    ],[
+      "npm",
+      "NPM"
+    ]
+  ],
+  "required":true
+}"""
+)
+
+~sql { varchar(20) }
+~scala { String }
+
+}

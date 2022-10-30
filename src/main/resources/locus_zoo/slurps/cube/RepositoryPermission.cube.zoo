@@ -1,0 +1,35 @@
+
+
+composite RepositoryPermission {
+
+@scalaModel(
+    dataMixin = "DataMixins.RepositoryPermissionMixin",
+    companionDataMixin = "DataMixins.RepositoryPermissionObjectMixin"
+)
+
+
+@sqltable(
+      name=locus_repositorypermission,
+      auditlog=true)
+
+@cube(sqlTableName="locus_repositorypermission")
+
+@sqlIndexes(
+      value="index repositoryUid (repositoryUid)",
+      value="index userGroupUid (userGroupUid)",
+      value="unique repositoryUid_userGroupUid (repositoryUid userGroupUid)")
+
+uid              Uid @key @required @field(extraConfig = """{"autoGenerator":{"length":32,"type":"uid"}}""")
+                        { ~scala { "Data.RepositoryPermission.Uid" @default('Data.RepositoryPermission.Uid.random()') } }
+                        ;
+
+repositoryUid    Repository @required @fetch(repository) @field(label = Repository);
+userGroupUid     UserGroupUid @required @field(label = "User Group");
+
+kind             PermissionKind @required;
+visible          Visible @field(extraConfig = """{"defaultValue":true}""");
+extraConfig      ExtraConfig @nullable;
+audit_version    long @nullable @readonly { ~scala { @default(None) }};
+audit_userGroupUid  UserGroupUid @nullable @readonly { ~scala { @default(None) }};
+
+}
