@@ -1,10 +1,11 @@
 package a8.locus
 
 
-import a8.shared.app.Logging
+import a8.shared.app.{A8LogFormatter, Logging}
 import a8.shared.{CascadingHocon, ConfigMojo}
 import io.undertow.Undertow
-import wvlet.log.{LogLevel, Logger}
+import wvlet.log.LogFormatter.SourceCodeLogFormatter
+import wvlet.log.{ConsoleLogHandler, LogLevel, Logger}
 
 object LocusMain extends Logging {
 
@@ -22,10 +23,30 @@ object LocusMain extends Logging {
   lazy val resolvedModel: ResolvedModel =
     ResolvedModel(serverConfig)
 
+  lazy val initLogLevels = {
+    Seq(
+      "org.xnio",
+      "org.apache.http",
+      "jdk.event",
+      "com.amazonaws.services.s3.internal.Mimetypes",
+      "com.amazonaws.auth.AWS4Signer",
+      "com.amazonaws.http.conn.ssl.SdkTLSSocketFactory",
+      "javax.xml.bind",
+      "com.amazonaws.internal.SdkSSLSocket",
+      "com.amazonaws.requestId",
+      "com.amazonaws.retry.ClockSkewAdjuster",
+      "com.amazonaws.services.s3.model.transform.XmlResponsesSaxParser",
+    ).foreach(l =>
+      Logger(l).setLogLevel(LogLevel.INFO)
+    )
+  }
+
   def main(args: Array[String]): Unit = {
     try {
       wvlet.airframe.log.init
+      Logger.rootLogger.resetHandler(new ConsoleLogHandler(A8LogFormatter.ColorConsole))
       Logger.setDefaultLogLevel(LogLevel.DEBUG)
+      initLogLevels
       run()
     } catch {
       case th: Throwable =>

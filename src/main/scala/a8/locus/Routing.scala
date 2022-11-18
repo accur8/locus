@@ -97,6 +97,7 @@ case class Routing(resolvedModel: ResolvedModel) {
       .addExactPath("/repos/", new ListReposHandler(resolvedModel))
       .addExactPath("/", new RootHandler())
       .addExactPath("/index.html", new RootHandler())
+      .addExactPath("/api/resolveDependencyTree", new ResolveDependencyTreeHandler)
   }
 
 }

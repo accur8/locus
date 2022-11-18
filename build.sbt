@@ -17,8 +17,8 @@
 val appVersion = a8.sbt_a8.versionStamp(file("."))
 
 val scalaLibVersion = "2.13.10"
-val versionsVersion = "1.0.0-20221025_1632_master"
-val amazonVersion = "1.11.162"
+val versionsVersion = "1.0.0-20221113_1354_master"
+val amazonVersion = "1.12.196"
 val undertowVersion = "2.0.15.Final"
 val model3Version = "2.7.1-20210602_1321_master"
 
@@ -51,6 +51,8 @@ lazy val locus =
         "io.undertow" % "undertow-core" % undertowVersion,
         "com.amazonaws" % "aws-java-sdk-s3" % amazonVersion % "compile",
         "net.sourceforge.htmlcleaner" % "htmlcleaner" % "2.24",
+        "jakarta.xml.bind" % "jakarta.xml.bind-api" % "2.3.2",
+        "org.glassfish.jaxb" % "jaxb-runtime" % "2.3.2",
       )
     )
 

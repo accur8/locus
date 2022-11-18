@@ -1,5 +1,7 @@
 package a8.locus
 
+import a8.shared.Meta.{CaseClassParm, Generator, Constructors}
+
 /**
 
   WARNING THIS IS GENERATED CODE.  DO NOT EDIT.
@@ -13,9 +15,6 @@ import a8.locus.Config._
 import SharedImports._
 import a8.locus.model.Uri
 //====
-
-import a8.shared.Meta.{CaseClassParm, Generator, Constructors}
-
 
 
 object MxConfig {
@@ -32,8 +31,6 @@ object MxConfig {
           .addField(_.repoForWrites)
       )
       .build
-    
-    implicit val zioEq: zio.prelude.Equal[MultiplexerRepo] = zio.prelude.Equal.default
     
     implicit val catsEq: cats.Eq[MultiplexerRepo] = cats.Eq.fromUniversalEquals
     
@@ -94,8 +91,6 @@ object MxConfig {
       )
       .build
     
-    implicit val zioEq: zio.prelude.Equal[UrlRepo] = zio.prelude.Equal.default
-    
     implicit val catsEq: cats.Eq[UrlRepo] = cats.Eq.fromUniversalEquals
     
     lazy val generator: Generator[UrlRepo,parameters.type] =  {
@@ -151,8 +146,6 @@ object MxConfig {
           .addField(_.directory)
       )
       .build
-    
-    implicit val zioEq: zio.prelude.Equal[LocalRepo] = zio.prelude.Equal.default
     
     implicit val catsEq: cats.Eq[LocalRepo] = cats.Eq.fromUniversalEquals
     
@@ -210,8 +203,6 @@ object MxConfig {
       )
       .build
     
-    implicit val zioEq: zio.prelude.Equal[S3Config] = zio.prelude.Equal.default
-    
     implicit val catsEq: cats.Eq[S3Config] = cats.Eq.fromUniversalEquals
     
     lazy val generator: Generator[S3Config,parameters.type] =  {
@@ -268,8 +259,6 @@ object MxConfig {
           .addField(_.privilege)
       )
       .build
-    
-    implicit val zioEq: zio.prelude.Equal[User] = zio.prelude.Equal.default
     
     implicit val catsEq: cats.Eq[User] = cats.Eq.fromUniversalEquals
     
@@ -335,8 +324,6 @@ object MxConfig {
           .addField(_.realm)
       )
       .build
-    
-    implicit val zioEq: zio.prelude.Equal[LocusConfig] = zio.prelude.Equal.default
     
     implicit val catsEq: cats.Eq[LocusConfig] = cats.Eq.fromUniversalEquals
     
