@@ -46,6 +46,7 @@ lazy val locus =
     .jvmProject("a8-locus", file("../locus"), "locus")
     .settings(
       libraryDependencies ++= Seq(
+        "commons-net" % "commons-net" % "3.9.0",
         "io.accur8" %% "a8-versions" % versionsVersion % "compile",
         "org.scalatest" %% "scalatest" % "3.2.14" % Test,
         "io.undertow" % "undertow-core" % undertowVersion,

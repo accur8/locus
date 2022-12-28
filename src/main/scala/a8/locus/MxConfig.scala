@@ -1,7 +1,5 @@
 package a8.locus
 
-import a8.shared.Meta.{CaseClassParm, Generator, Constructors}
-
 /**
 
   WARNING THIS IS GENERATED CODE.  DO NOT EDIT.
@@ -15,6 +13,9 @@ import a8.locus.Config._
 import SharedImports._
 import a8.locus.model.Uri
 //====
+
+import a8.shared.Meta.{CaseClassParm, Generator, Constructors}
+
 
 
 object MxConfig {
@@ -31,6 +32,8 @@ object MxConfig {
           .addField(_.repoForWrites)
       )
       .build
+    
+    implicit val zioEq: zio.prelude.Equal[MultiplexerRepo] = zio.prelude.Equal.default
     
     implicit val catsEq: cats.Eq[MultiplexerRepo] = cats.Eq.fromUniversalEquals
     
@@ -91,6 +94,8 @@ object MxConfig {
       )
       .build
     
+    implicit val zioEq: zio.prelude.Equal[UrlRepo] = zio.prelude.Equal.default
+    
     implicit val catsEq: cats.Eq[UrlRepo] = cats.Eq.fromUniversalEquals
     
     lazy val generator: Generator[UrlRepo,parameters.type] =  {
@@ -147,6 +152,8 @@ object MxConfig {
       )
       .build
     
+    implicit val zioEq: zio.prelude.Equal[LocalRepo] = zio.prelude.Equal.default
+    
     implicit val catsEq: cats.Eq[LocalRepo] = cats.Eq.fromUniversalEquals
     
     lazy val generator: Generator[LocalRepo,parameters.type] =  {
@@ -202,6 +209,8 @@ object MxConfig {
           .addField(_.secretKey)
       )
       .build
+    
+    implicit val zioEq: zio.prelude.Equal[S3Config] = zio.prelude.Equal.default
     
     implicit val catsEq: cats.Eq[S3Config] = cats.Eq.fromUniversalEquals
     
@@ -260,6 +269,8 @@ object MxConfig {
       )
       .build
     
+    implicit val zioEq: zio.prelude.Equal[User] = zio.prelude.Equal.default
+    
     implicit val catsEq: cats.Eq[User] = cats.Eq.fromUniversalEquals
     
     lazy val generator: Generator[User,parameters.type] =  {
@@ -314,6 +325,8 @@ object MxConfig {
     implicit lazy val jsonCodec: a8.shared.json.JsonTypedCodec[LocusConfig,a8.shared.json.ast.JsObj] =
       jsonCodecBuilder(
         a8.shared.json.JsonObjectCodecBuilder(generator)
+          .addField(_.proxyServerAddresses)
+          .addField(_.anonymousSubnets)
           .addField(_.dataDirectory)
           .addField(_.s3)
           .addField(_.repos)
@@ -325,22 +338,26 @@ object MxConfig {
       )
       .build
     
+    implicit val zioEq: zio.prelude.Equal[LocusConfig] = zio.prelude.Equal.default
+    
     implicit val catsEq: cats.Eq[LocusConfig] = cats.Eq.fromUniversalEquals
     
     lazy val generator: Generator[LocusConfig,parameters.type] =  {
-      val constructors = Constructors[LocusConfig](8, unsafe.iterRawConstruct)
+      val constructors = Constructors[LocusConfig](10, unsafe.iterRawConstruct)
       Generator(constructors, parameters)
     }
     
     object parameters {
-      lazy val dataDirectory: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("dataDirectory", _.dataDirectory, (d,v) => d.copy(dataDirectory = v), None, 0)
-      lazy val s3: CaseClassParm[LocusConfig,Option[S3Config]] = CaseClassParm[LocusConfig,Option[S3Config]]("s3", _.s3, (d,v) => d.copy(s3 = v), None, 1)
-      lazy val repos: CaseClassParm[LocusConfig,Iterable[Repo]] = CaseClassParm[LocusConfig,Iterable[Repo]]("repos", _.repos, (d,v) => d.copy(repos = v), None, 2)
-      lazy val users: CaseClassParm[LocusConfig,Iterable[User]] = CaseClassParm[LocusConfig,Iterable[User]]("users", _.users, (d,v) => d.copy(users = v), None, 3)
-      lazy val noCacheFiles: CaseClassParm[LocusConfig,Iterable[CiString]] = CaseClassParm[LocusConfig,Iterable[CiString]]("noCacheFiles", _.noCacheFiles, (d,v) => d.copy(noCacheFiles = v), None, 4)
-      lazy val port: CaseClassParm[LocusConfig,Int] = CaseClassParm[LocusConfig,Int]("port", _.port, (d,v) => d.copy(port = v), None, 5)
-      lazy val versionsVersion: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("versionsVersion", _.versionsVersion, (d,v) => d.copy(versionsVersion = v), None, 6)
-      lazy val realm: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("realm", _.realm, (d,v) => d.copy(realm = v), Some(()=> "Accur8 Repo"), 7)
+      lazy val proxyServerAddresses: CaseClassParm[LocusConfig,Iterable[String]] = CaseClassParm[LocusConfig,Iterable[String]]("proxyServerAddresses", _.proxyServerAddresses, (d,v) => d.copy(proxyServerAddresses = v), Some(()=> Iterable.empty), 0)
+      lazy val anonymousSubnets: CaseClassParm[LocusConfig,Iterable[String]] = CaseClassParm[LocusConfig,Iterable[String]]("anonymousSubnets", _.anonymousSubnets, (d,v) => d.copy(anonymousSubnets = v), Some(()=> Iterable.empty), 1)
+      lazy val dataDirectory: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("dataDirectory", _.dataDirectory, (d,v) => d.copy(dataDirectory = v), None, 2)
+      lazy val s3: CaseClassParm[LocusConfig,Option[S3Config]] = CaseClassParm[LocusConfig,Option[S3Config]]("s3", _.s3, (d,v) => d.copy(s3 = v), None, 3)
+      lazy val repos: CaseClassParm[LocusConfig,Iterable[Repo]] = CaseClassParm[LocusConfig,Iterable[Repo]]("repos", _.repos, (d,v) => d.copy(repos = v), None, 4)
+      lazy val users: CaseClassParm[LocusConfig,Iterable[User]] = CaseClassParm[LocusConfig,Iterable[User]]("users", _.users, (d,v) => d.copy(users = v), None, 5)
+      lazy val noCacheFiles: CaseClassParm[LocusConfig,Iterable[CiString]] = CaseClassParm[LocusConfig,Iterable[CiString]]("noCacheFiles", _.noCacheFiles, (d,v) => d.copy(noCacheFiles = v), None, 6)
+      lazy val port: CaseClassParm[LocusConfig,Int] = CaseClassParm[LocusConfig,Int]("port", _.port, (d,v) => d.copy(port = v), None, 7)
+      lazy val versionsVersion: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("versionsVersion", _.versionsVersion, (d,v) => d.copy(versionsVersion = v), None, 8)
+      lazy val realm: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("realm", _.realm, (d,v) => d.copy(realm = v), Some(()=> "Accur8 Repo"), 9)
     }
     
     
@@ -348,19 +365,23 @@ object MxConfig {
     
       def rawConstruct(values: IndexedSeq[Any]): LocusConfig = {
         LocusConfig(
-          dataDirectory = values(0).asInstanceOf[String],
-          s3 = values(1).asInstanceOf[Option[S3Config]],
-          repos = values(2).asInstanceOf[Iterable[Repo]],
-          users = values(3).asInstanceOf[Iterable[User]],
-          noCacheFiles = values(4).asInstanceOf[Iterable[CiString]],
-          port = values(5).asInstanceOf[Int],
-          versionsVersion = values(6).asInstanceOf[String],
-          realm = values(7).asInstanceOf[String],
+          proxyServerAddresses = values(0).asInstanceOf[Iterable[String]],
+          anonymousSubnets = values(1).asInstanceOf[Iterable[String]],
+          dataDirectory = values(2).asInstanceOf[String],
+          s3 = values(3).asInstanceOf[Option[S3Config]],
+          repos = values(4).asInstanceOf[Iterable[Repo]],
+          users = values(5).asInstanceOf[Iterable[User]],
+          noCacheFiles = values(6).asInstanceOf[Iterable[CiString]],
+          port = values(7).asInstanceOf[Int],
+          versionsVersion = values(8).asInstanceOf[String],
+          realm = values(9).asInstanceOf[String],
         )
       }
       def iterRawConstruct(values: Iterator[Any]): LocusConfig = {
         val value =
           LocusConfig(
+            proxyServerAddresses = values.next().asInstanceOf[Iterable[String]],
+            anonymousSubnets = values.next().asInstanceOf[Iterable[String]],
             dataDirectory = values.next().asInstanceOf[String],
             s3 = values.next().asInstanceOf[Option[S3Config]],
             repos = values.next().asInstanceOf[Iterable[Repo]],
@@ -374,8 +395,8 @@ object MxConfig {
            sys.error("")
         value
       }
-      def typedConstruct(dataDirectory: String, s3: Option[S3Config], repos: Iterable[Repo], users: Iterable[User], noCacheFiles: Iterable[CiString], port: Int, versionsVersion: String, realm: String): LocusConfig =
-        LocusConfig(dataDirectory, s3, repos, users, noCacheFiles, port, versionsVersion, realm)
+      def typedConstruct(proxyServerAddresses: Iterable[String], anonymousSubnets: Iterable[String], dataDirectory: String, s3: Option[S3Config], repos: Iterable[Repo], users: Iterable[User], noCacheFiles: Iterable[CiString], port: Int, versionsVersion: String, realm: String): LocusConfig =
+        LocusConfig(proxyServerAddresses, anonymousSubnets, dataDirectory, s3, repos, users, noCacheFiles, port, versionsVersion, realm)
     
     }
     

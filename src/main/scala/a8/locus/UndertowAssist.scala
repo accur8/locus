@@ -1,9 +1,11 @@
 package a8.locus
 
+
 import java.io.{ByteArrayInputStream, FileInputStream}
 import a8.locus.Dsl.UrlPath
 import a8.shared.FileSystem.File
 import io.undertow.server.HttpServerExchange
+import scala.jdk.CollectionConverters._
 
 object UndertowAssist {
 
@@ -11,6 +13,15 @@ object UndertowAssist {
 
     def setStatusCode(statusCode: HttpStatusCode): ExchangeOps =
       exchange.setStatusCode(statusCode.number)
+
+    def headerValue(name: String): Option[String] =
+      Option(exchange.getRequestHeaders.get(name))
+        .flatMap(_.iterator().asScala.nextOption())
+
+    def headerValues(name: String): Iterable[String] =
+      Option(exchange.getRequestHeaders.get(name))
+        .toList
+        .flatMap(_.iterator().asScala)
 
   }
 

@@ -3,15 +3,18 @@ package a8.locus
 import a8.locus.Config.{User, UserPrivilege}
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel.{ResolvedContent, ResolvedRepo}
+import a8.locus.Routing.Router
 import a8.locus.SharedImports._
 import a8.shared.app.Logging
 import io.undertow.server.{HttpHandler, HttpServerExchange}
 import io.undertow.util.{Headers, StatusCodes}
 import org.slf4j.MDC
 
-case class ListReposHandler(resolvedModel: ResolvedModel) extends HttpHandler with Logging {
+case class ListReposHandler(router: Router) extends HttpHandler with Logging {
 
   import UndertowAssist._
+
+  import router.resolvedModel
 
   case class Request(
     exchange: HttpServerExchange,
@@ -24,47 +27,6 @@ case class ListReposHandler(resolvedModel: ResolvedModel) extends HttpHandler wi
     )
       .map(t => CiString(t._1) -> t._2)
       .toMap
-
-  def resolveUser(exchange: HttpServerExchange): Either[HttpResponse,User] = {
-
-    def requireAuthenticationResponse =
-      HttpResponse(
-        content = HttpResponseBody.empty,
-        statusCode = HttpStatusCode.NotAuthorized,
-        headers = Map(
-          HttpHeader.WWWAuthenticate -> s"""Basic realm="${resolvedModel.config.realm}""""
-        )
-      )
-
-    Option(exchange.getRequestHeaders.get("Authorization"))
-        .flatMap { headerValues =>
-          headerValues.iterator().asScala.flatMap(authenticate).nextOption()
-        }
-        .map(Right.apply)
-        .getOrElse(Left(requireAuthenticationResponse))
-
-  }
-
-  def authenticate(authenticateHeaderValue: String): Option[User] = {
-
-    authenticateHeaderValue.trim.splitList(" ", limit = 2) match {
-      case List("Basic", credentialsBase64) =>
-        val credentials = new String(java.util.Base64.getDecoder.decode(credentialsBase64))
-        credentials.splitList(":", limit = 2) match {
-          case List(user, password) =>
-            resolvedModel
-              .config
-              .users
-              .find(u => u.name =:= user && u.password =:= password)
-          case _ =>
-            None
-        }
-      case _ =>
-        None
-    }
-
-
-  }
 
 
   def handleRequest(exchange: HttpServerExchange): Unit = {
@@ -84,7 +46,7 @@ case class ListReposHandler(resolvedModel: ResolvedModel) extends HttpHandler wi
       logger.debug(s"start ${exchange.getRequestMethod} ${exchange.getRequestURL}")
 
       val response =
-        resolveUser(exchange) match {
+        router.resolveUser(exchange) match {
           case Left(httpResponse) =>
             httpResponse
           case Right(user) =>

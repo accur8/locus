@@ -3,7 +3,7 @@ package a8.locus
 
 import java.nio.ByteBuffer
 import io.undertow.server.{HttpHandler, HttpServerExchange}
-import a8.locus.Config.{User, UserPrivilege}
+import a8.locus.Config.{Subnet, SubnetManager, User, UserPrivilege}
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel.RepoContent.TempFile
 import a8.locus.ResolvedModel.{ResolvedContent, ResolvedRepo}
@@ -11,11 +11,15 @@ import a8.locus.UndertowAssist.HttpResponse
 import io.undertow.util.{Headers, StatusCodes}
 import org.slf4j.MDC
 import SharedImports._
+import a8.locus.Routing.Router
 import a8.shared.app.Logging
+import org.apache.commons.net.util.SubnetUtils
 
-case class RepoHttpHandler(controller: ResolvedModel, resolvedRepo: ResolvedRepo) extends HttpHandler with Logging {
+case class RepoHttpHandler(router: Router, resolvedRepo: ResolvedRepo) extends HttpHandler with Logging {
 
   import UndertowAssist._
+
+  val controller = router.resolvedModel
 
   case class Request(
     exchange: HttpServerExchange,
@@ -31,47 +35,6 @@ case class RepoHttpHandler(controller: ResolvedModel, resolvedRepo: ResolvedRepo
     )
       .map(t => CiString(t._1) -> t._2)
       .toMap
-
-  def resolveUser(exchange: HttpServerExchange): Either[HttpResponse,User] = {
-
-    def requireAuthenticationResponse =
-      HttpResponse(
-        content = HttpResponseBody.empty,
-        statusCode = HttpStatusCode.NotAuthorized,
-        headers = Map(
-          HttpHeader.WWWAuthenticate -> s"""Basic realm="${controller.config.realm}""""
-        )
-      )
-
-    Option(exchange.getRequestHeaders.get("Authorization"))
-        .flatMap { headerValues =>
-          headerValues.iterator().asScala.flatMap(authenticate).nextOption()
-        }
-        .map(Right.apply)
-        .getOrElse(Left(requireAuthenticationResponse))
-
-  }
-
-  def authenticate(authenticateHeaderValue: String): Option[User] = {
-
-    authenticateHeaderValue.trim.splitList(" ", limit = 2) match {
-      case List("Basic", credentialsBase64) =>
-        val credentials = new String(java.util.Base64.getDecoder.decode(credentialsBase64))
-        credentials.splitList(":", limit = 2) match {
-          case List(user, password) =>
-            controller
-              .config
-              .users
-              .find(u => u.name =:= user && u.password =:= password)
-          case _ =>
-            None
-        }
-      case _ =>
-        None
-    }
-
-
-  }
 
 
   def handleRequest(exchange: HttpServerExchange): Unit = {
@@ -95,7 +58,7 @@ case class RepoHttpHandler(controller: ResolvedModel, resolvedRepo: ResolvedRepo
       try {
 
         val response =
-          resolveUser(exchange) match {
+          router.resolveUser(exchange) match {
             case Left(httpResponse) =>
               httpResponse
             case Right(user) =>

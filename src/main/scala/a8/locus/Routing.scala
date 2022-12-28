@@ -3,8 +3,7 @@ package a8.locus
 import io.undertow.server.{HttpHandler, HttpServerExchange}
 
 import java.util.Collections
-
-import a8.locus.Routing.ErrorHandler
+import a8.locus.Routing.{ErrorHandler, Router}
 import io.undertow.Handlers
 import io.undertow.security.api.{AuthenticationMechanism, AuthenticationMode}
 import io.undertow.security.handlers.{AuthenticationCallHandler, AuthenticationConstraintHandler, AuthenticationMechanismsHandler, SecurityInitialHandler}
@@ -13,6 +12,10 @@ import io.undertow.server.handlers.encoding.{ContentEncodingRepository, DeflateE
 import io.undertow.server.{HttpHandler, HttpServerExchange}
 import io.undertow.util.HttpString
 import SharedImports._
+import a8.locus.Config.{SubnetManager, User}
+import a8.locus.ResolvedModel.ResolvedRepo
+import a8.locus.UndertowAssist.{HttpResponse, HttpResponseBody}
+import org.apache.commons.net.util.SubnetUtils
 
 // TODO move this code into a shared location (model3 project) that can be shared by odin/mugatu/server and this aka for https://accur8.atlassian.net/browse/ODIN-2013
 object Routing {
@@ -35,10 +38,95 @@ object Routing {
 
   }
 
+
+  case class Router(resolvedModel: ResolvedModel, anonymousSubnetManager: SubnetManager) {
+
+    import a8.locus.UndertowAssist.ExchangeOps
+
+    def anonymousLogin(exchange: HttpServerExchange): Option[User] =
+      anonymousSubnetManager
+        .isInSubnet(exchange.getSourceAddress, exchange.headerValue("X-Forwarded-For"))
+        .toOption(User.anonymous)
+
+    def resolveUser(exchange: HttpServerExchange): Either[HttpResponse, User] = {
+
+      def requireAuthenticationResponse =
+        HttpResponse(
+          content = HttpResponseBody.empty,
+          statusCode = HttpStatusCode.NotAuthorized,
+          headers = Map(
+            HttpHeader.WWWAuthenticate -> s"""Basic realm="${resolvedModel.config.realm}""""
+          )
+        )
+
+      Option(exchange.getRequestHeaders.get("Authorization"))
+        .flatMap { headerValues =>
+          headerValues.iterator().asScala.flatMap(authenticate).nextOption()
+        }
+        .orElse(anonymousLogin(exchange))
+        .map(Right.apply)
+        .getOrElse(Left(requireAuthenticationResponse))
+
+    }
+
+    def authenticate(authenticateHeaderValue: String): Option[User] = {
+
+      authenticateHeaderValue.trim.splitList(" ", limit = 2) match {
+        case List("Basic", credentialsBase64) =>
+          val credentials = new String(java.util.Base64.getDecoder.decode(credentialsBase64))
+          credentials.splitList(":", limit = 2) match {
+            case List(user, password) =>
+              resolvedModel
+                .config
+                .users
+                .find(u => u.name =:= user && u.password =:= password)
+            case _ =>
+              None
+          }
+        case _ =>
+          None
+      }
+
+
+    }
+
+  }
+
 }
 
 
 case class Routing(resolvedModel: ResolvedModel) {
+
+  lazy val anonymousSubnetManager: SubnetManager = {
+
+    def parseSubnetUtils(subnetStr: String): Option[SubnetUtils] = {
+      try {
+        Some(new SubnetUtils(subnetStr))
+      } catch {
+        case e: Exception =>
+          logger.error(s"invalid subnet in config -- ${subnetStr}", e)
+          None
+      }
+    }
+
+    val anonymousSubnets =
+      resolvedModel
+        .config
+        .anonymousSubnets
+        .flatMap(parseSubnetUtils)
+
+    val proxyServerAddresses =
+      resolvedModel
+        .config
+        .proxyServerAddresses
+        .flatMap(parseSubnetUtils)
+
+    SubnetManager(
+      proxyServerAddresses,
+      anonymousSubnets,
+    )
+
+  }
 
   def compressionHandler(next: HttpHandler) =
     new EncodingHandler(
@@ -56,8 +144,6 @@ case class Routing(resolvedModel: ResolvedModel) {
         )
       )
     )
-
-  lazy val identityManager = UserIdentityManager(resolvedModel.config.users)
 
   object AccessControlHeaders {
 
@@ -84,17 +170,19 @@ case class Routing(resolvedModel: ResolvedModel) {
       }
     }
 
+  lazy val router = Router(resolvedModel, anonymousSubnetManager)
+
   lazy val myHandlers = {
     val pathHandler =
       resolvedModel
         .resolvedProxyPaths
         .foldLeft(Handlers.path()) { case (pathHandler, resolvedProxy) =>
-          pathHandler.addPrefixPath(s"/repos/${resolvedProxy.name}/", RepoHttpHandler(resolvedModel, resolvedProxy))
+          pathHandler.addPrefixPath(s"/repos/${resolvedProxy.name}/", RepoHttpHandler(router, resolvedProxy))
         }
     pathHandler
       .addPrefixPath("/versionsVersion", new VersionsVersionHandler(resolvedModel.config))
-      .addExactPath("/repos", new ListReposHandler(resolvedModel))
-      .addExactPath("/repos/", new ListReposHandler(resolvedModel))
+      .addExactPath("/repos", new ListReposHandler(router))
+      .addExactPath("/repos/", new ListReposHandler(router))
       .addExactPath("/", new RootHandler())
       .addExactPath("/index.html", new RootHandler())
       .addExactPath("/api/resolveDependencyTree", new ResolveDependencyTreeHandler)

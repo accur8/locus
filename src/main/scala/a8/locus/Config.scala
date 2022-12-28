@@ -7,7 +7,10 @@ import a8.shared.CompanionGen
 import a8.shared.json.{EnumCodecBuilder, JsonCodec, UnionCodecBuilder}
 import MxConfig._
 import a8.locus.model.Uri
+import org.apache.commons.net.util.SubnetUtils
 import zio.prelude.Equal
+
+import java.net.InetSocketAddress
 
 object Config {
 
@@ -73,7 +76,43 @@ object Config {
   }
 
 
-  object User extends MxUser
+  case class Subnet(
+    value: String,
+  ) {
+    lazy val subnetUtils: Option[SubnetUtils] = {
+      try {
+        Some(new SubnetUtils(value))
+      } catch {
+        case e: Exception =>
+          logger.error(s"invalid subnet -- ${value}", e)
+          None
+      }
+    }
+  }
+
+  case class SubnetManager(
+    proxyServers: Iterable[SubnetUtils],
+    anonymousSubnets: Iterable[SubnetUtils],
+  ) {
+    def isInSubnet(address: InetSocketAddress, xforwardedForHeader: Option[String]): Boolean = {
+      val addressStr = address.getHostString
+      val isProxyServer = proxyServers.exists(_.getInfo.isInRange(addressStr))
+      val resolvedAddressStr =
+        if ( isProxyServer ) {
+          xforwardedForHeader.getOrElse(addressStr)
+        } else {
+          addressStr
+        }
+      val result = anonymousSubnets.exists(_.getInfo.isInRange(resolvedAddressStr))
+//      logger.debug(s"anonymous access from ${address} ${xforwardedForHeader} ${isProxyServer} -- ${result}")
+      result
+    }
+  }
+
+
+  object User extends MxUser {
+    val anonymous = User("anonymous", "", UserPrivilege.Read)
+  }
 
   @CompanionGen
   case class User(
@@ -86,6 +125,8 @@ object Config {
 
   @CompanionGen
   case class LocusConfig(
+    proxyServerAddresses: Iterable[String] = Iterable("127.0.0.0/8"),
+    anonymousSubnets: Iterable[String] = Iterable.empty,
     dataDirectory: String,
     s3: Option[S3Config],
     repos: Iterable[Repo],
