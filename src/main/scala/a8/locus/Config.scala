@@ -95,46 +95,53 @@ object Config {
     proxyServers: Iterable[SubnetUtils],
     anonymousSubnets: Iterable[SubnetUtils],
   ) {
+
     def isInSubnet(socketAddress: InetSocketAddress, xforwardedForHeaderOpt: Option[String]): Boolean = {
+
+      def isInAnonymousSubnet(resolvedAddressStr: String): Boolean =
+        anonymousSubnets
+          .exists(_.getInfo.isInRange(resolvedAddressStr))
+
       val address = socketAddress.getAddress
       val addressStr = socketAddress.getHostString
-      address match {
-        case _: Inet4Address =>
-          try {
 
-            val isProxyServer =
-              Try(
-                proxyServers.exists(_.getInfo.isInRange(addressStr))
-              ).getOrElse(false)
+      val isProxyServer =
+        Try(
+          proxyServers.exists(_.getInfo.isInRange(addressStr))
+        ).getOrElse(false)
 
-            def impl(resolvedAddressStr: String): Boolean =
-              anonymousSubnets
-                .exists(_.getInfo.isInRange(resolvedAddressStr))
+      val result =
+        (address, xforwardedForHeaderOpt) match {
+          case (_: Inet4Address, _) =>
+            try {
 
-            val resolvedAddress =
-              xforwardedForHeaderOpt
-                .filter(_ => isProxyServer)
-                .getOrElse(addressStr)
+              val resolvedAddress =
+                xforwardedForHeaderOpt
+                  .filter(_ => isProxyServer)
+                  .getOrElse(addressStr)
 
-            val result = impl(resolvedAddress)
+              isInAnonymousSubnet(resolvedAddress)
 
-            logger.debug(s"allow anonymous access check from ${address} ${xforwardedForHeaderOpt} ${isProxyServer} -- allow anonymous = ${result}")
+            } catch {
+              case e: Exception =>
+                logger.error(s"unable to process access from ${address} ${xforwardedForHeaderOpt} will report as not in anonymous subnet", e)
+                false
+            }
+          case (_: Inet6Address, Some(xforwardedForHeader)) if addressStr === "0:0:0:0:0:0:0:1" =>
+            isInAnonymousSubnet(xforwardedForHeader)
 
-            result
+          case (_: Inet6Address, _) =>
+            logger.debug(s"unable to allow anonymous access from ipv6 address ${addressStr} -- IPV6 addreses are not supported for anonymous access")
+            false
+          case _ =>
+            logger.debug(s"don't know how to handle inet address ${addressStr} with type of ${address.getClass}")
+            false
+        }
 
-          } catch {
-            case e: Exception =>
-              logger.error(s"unable to process access from ${address} ${xforwardedForHeaderOpt} will report as not in anonymous subnet", e)
-              false
-          }
+      logger.debug(s"allow anonymous access check from ${address} ${xforwardedForHeaderOpt} ${isProxyServer} -- allow anonymous = ${result}")
 
-        case _: Inet6Address =>
-          logger.debug(s"unable to allow anonymous access from ipv6 address ${addressStr} -- IPV6 addreses are not supported for anonymous access")
-          false
-        case _ =>
-          logger.debug(s"don't know how to handle inet address ${addressStr} with type of ${address.getClass}")
-          false
-      }
+      result
+
     }
   }
 
