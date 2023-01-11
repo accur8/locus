@@ -11,6 +11,7 @@ import org.apache.commons.net.util.SubnetUtils
 import zio.prelude.Equal
 
 import java.net.InetSocketAddress
+import scala.util.Try
 
 object Config {
 
@@ -94,18 +95,40 @@ object Config {
     proxyServers: Iterable[SubnetUtils],
     anonymousSubnets: Iterable[SubnetUtils],
   ) {
-    def isInSubnet(address: InetSocketAddress, xforwardedForHeader: Option[String]): Boolean = {
-      val addressStr = address.getHostString
-      val isProxyServer = proxyServers.exists(_.getInfo.isInRange(addressStr))
-      val resolvedAddressStr =
-        if ( isProxyServer ) {
-          xforwardedForHeader.getOrElse(addressStr)
-        } else {
-          addressStr
-        }
-      val result = anonymousSubnets.exists(_.getInfo.isInRange(resolvedAddressStr))
-//      logger.debug(s"anonymous access from ${address} ${xforwardedForHeader} ${isProxyServer} -- ${result}")
-      result
+    def isInSubnet(address: InetSocketAddress, xforwardedForHeaderOpt: Option[String]): Boolean = {
+      try {
+        val addressStr = address.getHostString
+
+        val isProxyServer =
+          Try(
+            proxyServers.exists(_.getInfo.isInRange(addressStr))
+          ).getOrElse(false)
+
+        def impl(resolvedAddressStr: String): Boolean =
+          anonymousSubnets
+            .exists(_.getInfo.isInRange(resolvedAddressStr))
+
+        val result =
+          (addressStr, xforwardedForHeaderOpt) match {
+            case ("0:0:0:0:0:0:0:1", Some(xforwardedForHeader)) =>
+              impl(xforwardedForHeader)
+            case ("0:0:0:0:0:0:0:1", None) =>
+              true
+            case (_, Some(xforwardedForHeader)) if isProxyServer =>
+              impl(xforwardedForHeader)
+            case _ =>
+              impl(addressStr)
+          }
+
+        logger.debug(s"allow anonymous access check from ${address} ${xforwardedForHeaderOpt} ${isProxyServer} -- allow anonymous = ${result}")
+
+        result
+
+      } catch {
+        case e: Exception =>
+          logger.error(s"unable to process access from ${address} ${xforwardedForHeaderOpt} will report as not in anonymous subnet", e)
+          false
+      }
     }
   }
 
