@@ -40,7 +40,7 @@ object ResolvedModel {
   }
 
   lazy val contentGenerators: Chain[ContentGenerator] =
-    Chain(GenerateIndexDotHtml, GenerateMavenMetadata)
+    Chain(GenerateIndexDotHtml, GenerateMavenMetadata, GenerateSha256)
 
   sealed trait ResolvedRepo { self: Logging =>
 

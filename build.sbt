@@ -54,6 +54,7 @@ lazy val locus =
         "net.sourceforge.htmlcleaner" % "htmlcleaner" % "2.24",
         "jakarta.xml.bind" % "jakarta.xml.bind-api" % "2.3.2",
         "org.glassfish.jaxb" % "jaxb-runtime" % "2.3.2",
+        "commons-codec" % "commons-codec" % "1.15",
       )
     )
 

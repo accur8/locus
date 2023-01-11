@@ -41,6 +41,19 @@ object Dsl {
     isDirectory: Boolean,
   ) {
 
+    def dropExtension: Option[UrlPath] =
+      parts.last.lastIndexOf(".") match {
+        case i if i > 0 =>
+          val filename = parts.last.substring(0, i)
+          copy(parts = parts.dropRight(1) ++ Some(filename))
+            .some
+        case _ =>
+          None
+      }
+
+    def appendExtension(extension: String): UrlPath =
+      copy(parts = parts.dropRight(1) ++ Some(parts.last + extension))
+
     def parent = UrlPath(parts.init, true)
     def last: String = parts.last
 
