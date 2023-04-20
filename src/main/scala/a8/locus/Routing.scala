@@ -41,12 +41,20 @@ object Routing {
 
   case class Router(resolvedModel: ResolvedModel, anonymousSubnetManager: SubnetManager) {
 
+    val anonymousHttpMethods =
+      Set(
+        "get",
+        "head",
+        "post",
+      )
+
     import a8.locus.UndertowAssist.ExchangeOps
 
     def anonymousLogin(exchange: HttpServerExchange): Option[User] =
       anonymousSubnetManager
         .isInSubnet(exchange.getSourceAddress, exchange.headerValue("X-Forwarded-For"))
         .toOption(User.anonymous)
+        .filter(_ => anonymousHttpMethods.contains(exchange.getRequestMethod.toString.toLowerCase))
 
     def resolveUser(exchange: HttpServerExchange): Either[HttpResponse, User] = {
 
@@ -186,6 +194,8 @@ case class Routing(resolvedModel: ResolvedModel) {
       .addExactPath("/", new RootHandler())
       .addExactPath("/index.html", new RootHandler())
       .addExactPath("/api/resolveDependencyTree", new ResolveDependencyTreeHandler)
+      .addExactPath("/api/javaLauncherConfigDotNix", new JavaLauncherDotNixHandler(true))
+      .addExactPath("/api/javaLauncherInstallerDotNix", new JavaLauncherDotNixHandler(false))
   }
 
 }

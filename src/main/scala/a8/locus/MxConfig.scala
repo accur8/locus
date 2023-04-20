@@ -35,7 +35,8 @@ object MxConfig {
     
     implicit val zioEq: zio.prelude.Equal[MultiplexerRepo] = zio.prelude.Equal.default
     
-    implicit val catsEq: cats.Eq[MultiplexerRepo] = cats.Eq.fromUniversalEquals
+    
+    
     
     lazy val generator: Generator[MultiplexerRepo,parameters.type] =  {
       val constructors = Constructors[MultiplexerRepo](3, unsafe.iterRawConstruct)
@@ -96,7 +97,8 @@ object MxConfig {
     
     implicit val zioEq: zio.prelude.Equal[UrlRepo] = zio.prelude.Equal.default
     
-    implicit val catsEq: cats.Eq[UrlRepo] = cats.Eq.fromUniversalEquals
+    
+    
     
     lazy val generator: Generator[UrlRepo,parameters.type] =  {
       val constructors = Constructors[UrlRepo](2, unsafe.iterRawConstruct)
@@ -154,7 +156,8 @@ object MxConfig {
     
     implicit val zioEq: zio.prelude.Equal[LocalRepo] = zio.prelude.Equal.default
     
-    implicit val catsEq: cats.Eq[LocalRepo] = cats.Eq.fromUniversalEquals
+    
+    
     
     lazy val generator: Generator[LocalRepo,parameters.type] =  {
       val constructors = Constructors[LocalRepo](2, unsafe.iterRawConstruct)
@@ -212,7 +215,8 @@ object MxConfig {
     
     implicit val zioEq: zio.prelude.Equal[S3Config] = zio.prelude.Equal.default
     
-    implicit val catsEq: cats.Eq[S3Config] = cats.Eq.fromUniversalEquals
+    
+    
     
     lazy val generator: Generator[S3Config,parameters.type] =  {
       val constructors = Constructors[S3Config](2, unsafe.iterRawConstruct)
@@ -271,7 +275,8 @@ object MxConfig {
     
     implicit val zioEq: zio.prelude.Equal[User] = zio.prelude.Equal.default
     
-    implicit val catsEq: cats.Eq[User] = cats.Eq.fromUniversalEquals
+    
+    
     
     lazy val generator: Generator[User,parameters.type] =  {
       val constructors = Constructors[User](3, unsafe.iterRawConstruct)
@@ -340,7 +345,8 @@ object MxConfig {
     
     implicit val zioEq: zio.prelude.Equal[LocusConfig] = zio.prelude.Equal.default
     
-    implicit val catsEq: cats.Eq[LocusConfig] = cats.Eq.fromUniversalEquals
+    
+    
     
     lazy val generator: Generator[LocusConfig,parameters.type] =  {
       val constructors = Constructors[LocusConfig](10, unsafe.iterRawConstruct)
@@ -348,7 +354,7 @@ object MxConfig {
     }
     
     object parameters {
-      lazy val proxyServerAddresses: CaseClassParm[LocusConfig,Iterable[String]] = CaseClassParm[LocusConfig,Iterable[String]]("proxyServerAddresses", _.proxyServerAddresses, (d,v) => d.copy(proxyServerAddresses = v), Some(()=> Iterable.empty), 0)
+      lazy val proxyServerAddresses: CaseClassParm[LocusConfig,Iterable[String]] = CaseClassParm[LocusConfig,Iterable[String]]("proxyServerAddresses", _.proxyServerAddresses, (d,v) => d.copy(proxyServerAddresses = v), Some(()=> Iterable("127.0.0.0/8")), 0)
       lazy val anonymousSubnets: CaseClassParm[LocusConfig,Iterable[String]] = CaseClassParm[LocusConfig,Iterable[String]]("anonymousSubnets", _.anonymousSubnets, (d,v) => d.copy(anonymousSubnets = v), Some(()=> Iterable.empty), 1)
       lazy val dataDirectory: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("dataDirectory", _.dataDirectory, (d,v) => d.copy(dataDirectory = v), None, 2)
       lazy val s3: CaseClassParm[LocusConfig,Option[S3Config]] = CaseClassParm[LocusConfig,Option[S3Config]]("s3", _.s3, (d,v) => d.copy(s3 = v), None, 3)

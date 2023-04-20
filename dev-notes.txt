@@ -7,3 +7,11 @@
 
 * properly set content types
 
+
+
+
+* show .sha256 in file listings
+* have sha256 checksum calcs populate cache
+
+
+
