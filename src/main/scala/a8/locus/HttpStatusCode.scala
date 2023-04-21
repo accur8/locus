@@ -15,5 +15,6 @@ object HttpStatusCode {
   case object NotFound extends HttpStatusCode(404)
   case object MethodNotAllowed extends HttpStatusCode(405)
   case object Conflict extends HttpStatusCode(409)
+  case object Error extends HttpStatusCode(500)
 
 }

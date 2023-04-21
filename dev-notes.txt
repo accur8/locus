@@ -1,17 +1,15 @@
 
 
-
-
-
-
-
 * properly set content types
-
-
 
 
 * show .sha256 in file listings
 * have sha256 checksum calcs populate cache
+* do nix hashes (and put them in the cache)
+* properly redirect to index.html on directories
 
 
 
+
+* zhttp need
+    * compression

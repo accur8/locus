@@ -52,7 +52,7 @@ object S3Assist {
 
     val entryName = bucketPrefix.last
 
-    val prefix = bucketPrefix.copy(isDirectory = false).toString
+    val prefix = bucketPrefix.withIsDirectory(isDirectory = false).toString
 
     @tailrec
     def impl(nextMarker: Option[String], accumulated: Vector[Either[String,S3ObjectSummary]]): Vector[Either[String,S3ObjectSummary]] = {

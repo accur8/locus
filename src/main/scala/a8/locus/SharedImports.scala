@@ -14,7 +14,7 @@ object SharedImports extends a8.shared.SharedImports with Logging {
       CIString(_),
       _.toString,
     )
-  implicit val ciStringEq = Equal.make[CiString](_ == _)
+  implicit val ciStringEq: Equal[CiString] = Equal.make[CiString](_ == _)
 
 
   implicit class MoreStringOps(val s: String) extends AnyVal {

@@ -18,13 +18,19 @@ import cats.data.Chain
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
 import com.amazonaws.services.s3.model.{AmazonS3Exception, ObjectListing, ObjectMetadata, PutObjectRequest}
-import SharedImports._
+import SharedImports.*
 import a8.locus.model.DateTime
-import a8.shared.FileSystem
+import a8.locus.ziohttp.ZHttpHandler
+import a8.locus.ziohttp.ZHttpHandler.M
+import a8.shared.{FileSystem, ZFileSystem}
 import a8.shared.FileSystem.{Directory, File}
-import a8.shared.app.Logging
+import a8.shared.app.{Logging, LoggingF}
+
+import java.time.LocalDateTime
 
 object ResolvedModel {
+
+  case class ContentPath(parts: Seq[String], isDirectory: Boolean)
 
   case class DirectoryEntry(
     name: String,
@@ -51,7 +57,6 @@ object ResolvedModel {
     def controller: ResolvedModel
 
     def cachedContent(urlPath: UrlPath, applyCacheFilter: Boolean): Option[ResolvedContent]
-    def resolveContent(urlPath: UrlPath): Option[ResolvedContent]
 
     def name: CiString = model.name
 
@@ -60,7 +65,15 @@ object ResolvedModel {
 
     def entries(urlPath: UrlPath): Option[Vector[DirectoryEntry]]
 
+    def resolveContent(urlPath: UrlPath): Option[ResolvedContent]
+
     def put(urlPath: UrlPath, content: File): HttpStatusCode
+
+    def resolveContentM(path: ContentPath): ZHttpHandler.M[Option[ResolvedContent]] =
+      zblock(resolveContent(UrlPath.fromContentPath(path)))
+
+    def putM(path: ContentPath, content: ZFileSystem.File): M[HttpStatusCode] =
+      zblock(put(UrlPath.fromContentPath(path), FileSystem.file(content.absolutePath)))
 
   }
 
@@ -125,6 +138,11 @@ object ResolvedModel {
         }
       }
     }
+
+    override def putM(path: ContentPath, content: ZFileSystem.File): M[HttpStatusCode] =
+      repoForWrites
+        .map(_.putM(path, content))
+        .getOrElse(zsucceed(HttpStatusCode.MethodNotAllowed))
 
     override def put(urlPath: UrlPath, content: File): HttpStatusCode =
       repoForWrites
@@ -238,7 +256,6 @@ object ResolvedModel {
                 DirectoryEntry(path.last, false, this, Some(DateTime(s3o.getLastModified)), Some(s3o.getSize))
             }
         }
-
 
     override def put(urlPath: UrlPath, content: File): HttpStatusCode = {
       val key = keyPrefix.append(urlPath).toString
@@ -389,6 +406,9 @@ object ResolvedModel {
 
     }
 
+    override def putM(path: ContentPath, content: ZFileSystem.File): M[HttpStatusCode] =
+      zsucceed(HttpStatusCode.MethodNotAllowed)
+
     override def put(urlPath: UrlPath, content: File): HttpStatusCode =
       HttpStatusCode.MethodNotAllowed
 
@@ -399,7 +419,7 @@ object ResolvedModel {
 
 case class ResolvedModel(
   config: Config.LocusConfig,
-) extends Logging {
+) extends LoggingF {
 
   lazy val dataRoot: Directory = FileSystem.dir(config.dataDirectory)
 
@@ -431,6 +451,27 @@ case class ResolvedModel(
 
   lazy val cacheRoot: Directory = dataRoot.subdir("cache")
   lazy val tempRoot: Directory = dataRoot.subdir("temp")
+  lazy val tempRootZ = ZFileSystem.dir(tempRoot.absolutePath)
+
+
+  def withWorkDirectoryM[A](fn: a8.shared.ZFileSystem.Directory => ZHttpHandler.M[A]): ZHttpHandler.M[A] = {
+    val directory = {
+      val date = LocalDateTime.now()
+      val uuid: String = java.util.UUID.randomUUID().toString.replace("-", "").take(20)
+      val subPath = f"${date.getYear}/${date.getMonthValue}%02d/${date.getDayOfMonth}%02d/${uuid}"
+      tempRootZ.subdir(subPath)
+    }
+
+    val wrappedEffect =
+      for {
+        _ <- directory.makeDirectories
+        a <- fn(directory)
+      } yield a
+
+    wrappedEffect
+      .ensuring(directory.deleteIfExists.logVoid)
+
+  }
 
   def withWorkDirectory[A](fn: Directory => A): A = {
     val name = java.util.UUID.randomUUID().toString.replaceAll("-","")

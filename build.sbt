@@ -16,8 +16,10 @@
 
 val appVersion = a8.sbt_a8.versionStamp(file("."))
 
-val scalaLibVersion = "2.13.10"
-val versionsVersion = "1.0.0-20230411_1749_master"
+//val scalaLibVersion = "2.13.10"
+//val versionsVersion = "1.0.0-20230411_1749_master"
+val scalaLibVersion = "3.2.2"
+val versionsVersion = "1.0.0-20230420_1346_master"
 val amazonVersion = "1.12.196"
 val undertowVersion = "2.0.15.Final"
 
@@ -45,6 +47,7 @@ lazy val locus =
     .jvmProject("a8-locus", file("../locus"), "locus")
     .settings(
       libraryDependencies ++= Seq(
+        "dev.zio" %% "zio-http" % "3.0.0-RC1",
         "commons-net" % "commons-net" % "3.9.0",
         "io.accur8" %% "a8-versions" % versionsVersion % "compile",
         "org.scalatest" %% "scalatest" % "3.2.14" % Test,

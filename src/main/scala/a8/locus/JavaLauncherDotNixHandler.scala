@@ -54,13 +54,13 @@ case class JavaLauncherDotNixHandler(launcherConfigOnly: Boolean) extends HttpHa
         zio.Unsafe.unsafe { implicit unsafe =>
           val contentEffect = GenerateJavaLauncherDotNix(parms, launcherConfigOnly)
           zio.Runtime.default.unsafe.run(
-            contentEffect.responseT
+            contentEffect.javaLauncherContentT
           ).getOrThrowFiberFailure()
         }
 
       exchange
         .getResponseSender
-        .send(content.prettyJson)
+        .send(content)
 
     }
 

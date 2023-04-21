@@ -109,7 +109,7 @@ case class RepoHttpHandler(router: Router, resolvedRepo: ResolvedRepo) extends H
           }
           resolvedRepo.put(urlPath, tempFile)
         }
-      HttpResponse.emptyResponse
+      HttpResponse.Ok
     }
   }
 
@@ -117,7 +117,7 @@ case class RepoHttpHandler(router: Router, resolvedRepo: ResolvedRepo) extends H
     import request._
     resolveContent(exchange) match {
       case Some(_) =>
-        HttpResponse.emptyResponse
+        HttpResponse.Ok
       case None =>
         HttpResponse.notFound()
     }

@@ -6,6 +6,7 @@ import a8.locus.Dsl.UrlPath
 import a8.shared.FileSystem.File
 import io.undertow.server.HttpServerExchange
 import scala.jdk.CollectionConverters._
+import SharedImports._
 
 object UndertowAssist {
 
@@ -74,7 +75,17 @@ object UndertowAssist {
 
   object HttpResponse {
 
-    val emptyResponse = HttpResponse(HttpResponseBody.empty)
+    val Ok = HttpResponse(HttpResponseBody.empty)
+    val OkZ = zsucceed(emptyResponse)
+
+    def emptyResponse(statusCode: HttpStatusCode): HttpResponse =
+      HttpResponse(
+        content = HttpResponseBody.empty,
+        statusCode = statusCode,
+      )
+
+    def methodNotAllowed(message: String = ""): HttpResponse =
+      HttpResponse(HttpResponseBody.fromStr(message), HttpStatusCode.MethodNotAllowed)
 
     def forbidden(message: String = ""): HttpResponse =
       HttpResponse(HttpResponseBody.fromStr(message), HttpStatusCode.Forbidden)
@@ -87,6 +98,12 @@ object UndertowAssist {
 
     def fromHtml(html: String): HttpResponse =
       HttpResponse(HttpResponseBody.html(html))
+
+    def error(message: String): HttpResponse =
+      HttpResponse(HttpResponseBody.fromStr(message), HttpStatusCode.NotFound)
+
+    def errorz(message: String): zio.UIO[HttpResponse] =
+      zsucceed(error(message))
 
     def permanentRedirect(location: UrlPath): HttpResponse =
       HttpResponse(

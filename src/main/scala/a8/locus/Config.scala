@@ -2,10 +2,10 @@ package a8.locus
 
 import a8.locus.Config.LocusConfig
 import enumeratum.EnumEntry
-import a8.locus.SharedImports._
+import a8.locus.SharedImports.*
 import a8.shared.CompanionGen
-import a8.shared.json.{EnumCodecBuilder, JsonCodec, UnionCodecBuilder}
-import MxConfig._
+import a8.shared.json.{EnumCodecBuilder, JsonCodec, JsonTypedCodec, UnionCodecBuilder, ast}
+import MxConfig.*
 import a8.locus.model.Uri
 import org.apache.commons.net.util.SubnetUtils
 import zio.prelude.Equal
@@ -16,7 +16,7 @@ import scala.util.Try
 object Config {
 
   object Repo {
-    implicit val format =
+    implicit val format: JsonTypedCodec[Repo, ast.JsObj] =
       UnionCodecBuilder[Repo]
         .typeFieldName("_type")
         .addType[MultiplexerRepo]("multiplexer")
@@ -69,7 +69,7 @@ object Config {
     case object Write extends UserPrivilege
     case object Admin extends UserPrivilege
 
-    implicit val eq = Equal.make[UserPrivilege](_ == _)
+    implicit val eq: Equal[UserPrivilege] = Equal.make[UserPrivilege](_ == _)
 
     implicit lazy val format: JsonCodec[UserPrivilege] =
       EnumCodecBuilder(this)

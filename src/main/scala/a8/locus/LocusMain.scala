@@ -15,7 +15,8 @@ object LocusMain extends Logging {
   }
 
   lazy val serverConfig: Config.LocusConfig =
-    ConfigMojo()
+    ConfigMojo
+      .root
       .locus
       .server
       .as[Config.LocusConfig]

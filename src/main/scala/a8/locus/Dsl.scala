@@ -1,13 +1,41 @@
 package a8.locus
 
 
-import a8.shared.json.JsonCodec
-import SharedImports._
+import a8.shared.json.{JsonCodec, JsonTypedCodec, ast}
+import SharedImports.*
+import a8.locus.ResolvedModel.ContentPath
+import a8.locus.ziohttp.ZHttpHandler.Path
 
 // TODO move this code into a shared location (model3 project) that can be shared by odin/mugatu/server and this aka for https://accur8.atlassian.net/browse/ODIN-2013
 object Dsl {
 
   object UrlPath {
+
+    def fromContentPath(contentPath: ContentPath): UrlPath =
+      UrlPath(contentPath.parts, contentPath.isDirectory)
+
+    def fromZHttpPath(zhttpPath: zio.http.Path): UrlPath = {
+      import zio.http.Path.Segment
+      val isDirectory =
+        zhttpPath
+          .segments
+          .lastOption
+          .collect {
+            case Segment.Root =>
+              true
+          }
+          .nonEmpty
+      val parts =
+        zhttpPath
+          .segments
+          .flatMap {
+            case Segment.Root =>
+              None
+            case Segment.Text(t) =>
+              Some(t)
+          }
+      UrlPath(parts, isDirectory)
+    }
 
     val empty: UrlPath = UrlPath(Iterable.empty, false)
 
@@ -28,7 +56,7 @@ object Dsl {
       UrlPath(parts, path.endsWith("/"))
     }
 
-    implicit val format =
+    implicit val format: JsonTypedCodec[UrlPath, ast.JsStr] =
       JsonCodec.string.dimap[UrlPath](
         UrlPath.parse,
         _.toString,
@@ -36,10 +64,21 @@ object Dsl {
 
   }
 
-  case class UrlPath private (
+  case class UrlPath(
     parts: Iterable[String],
     isDirectory: Boolean,
   ) {
+
+    def contentPath(basePath: Path): Option[ContentPath] = {
+      val basePathParts = parts.take(basePath.parts.size).toIndexedSeq
+      ( basePathParts.map(CiString(_)) == basePath.parts )
+        .toOption(
+          ContentPath(parts.drop(basePath.parts.size).toIndexedSeq, isDirectory)
+        )
+    }
+
+    def withIsDirectory(isDirectory: Boolean): UrlPath =
+      copy(isDirectory = isDirectory)
 
     def dropExtension: Option[UrlPath] =
       parts.last.lastIndexOf(".") match {

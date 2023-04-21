@@ -16,7 +16,8 @@ object S3ListObjects {
 
 
   lazy val serverConfig: Config.LocusConfig =
-    ConfigMojo()
+    ConfigMojo
+      .root
       .locus
       .serer
       .as[Config.LocusConfig]
