@@ -90,7 +90,7 @@ object UrlAssist {
     password: String,
   )
 
-  def get (
+  def get(
     uri: Uri,
     requestHeaders: Map[String,String] = Map(),
     auth: Option[BasicAuth] = None,

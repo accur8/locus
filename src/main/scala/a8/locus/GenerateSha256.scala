@@ -4,9 +4,9 @@ package a8.locus
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel.ContentGenerator
 import a8.locus.ResolvedModel.RepoContent.{CacheFile, TempFile}
-import a8.locus.SharedImports._
-import a8.locus.UndertowAssist.HttpResponseBody
+import a8.locus.SharedImports.*
 import a8.locus.model.DateTime
+import a8.locus.ziohttp.model.{HttpResponse, HttpResponseBody}
 import a8.shared.FileSystem.File
 import a8.versions.{BuildTimestamp, Version}
 import org.apache.commons.codec.digest.DigestUtils
@@ -32,7 +32,7 @@ object GenerateSha256 extends ContentGenerator {
   override def canGenerateFor(urlPath: UrlPath): Boolean =
     urlPath.parts.last.endsWith(extension)
 
-  override def generate(sha256Path: UrlPath, resolvedRepo: ResolvedModel.ResolvedRepo): Option[HttpResponseBody] = {
+  override def generate(sha256Path: UrlPath, resolvedRepo: ResolvedModel.ResolvedRepo): Option[HttpResponse] = {
     val resultOpt =
       for {
         basePath <- sha256Path.dropExtension

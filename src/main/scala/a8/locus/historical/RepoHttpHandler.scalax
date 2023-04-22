@@ -7,7 +7,7 @@ import a8.locus.Config.{Subnet, SubnetManager, User, UserPrivilege}
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel.RepoContent.TempFile
 import a8.locus.ResolvedModel.{ResolvedContent, ResolvedRepo}
-import a8.locus.UndertowAssist.HttpResponse
+import .HttpResponse
 import io.undertow.util.{Headers, StatusCodes}
 import org.slf4j.MDC
 import SharedImports._
@@ -16,8 +16,6 @@ import a8.shared.app.Logging
 import org.apache.commons.net.util.SubnetUtils
 
 case class RepoHttpHandler(router: Router, resolvedRepo: ResolvedRepo) extends HttpHandler with Logging {
-
-  import UndertowAssist._
 
   val controller = router.resolvedModel
 

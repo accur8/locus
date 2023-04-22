@@ -30,7 +30,7 @@ object HttpResponses {
   def Forbidden(responseBody: String): UIO[Response] =
     impl(responseBody, status = Status.Forbidden)
 
-  def NotFound(responseBody: String): UIO[Response] =
+  def NotFound(responseBody: String = ""): UIO[Response] =
     impl(responseBody, status = Status.NotFound)
 
   def fromError(httpError: HttpError): UIO[Response] =

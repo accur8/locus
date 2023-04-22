@@ -21,7 +21,6 @@ val appVersion = a8.sbt_a8.versionStamp(file("."))
 val scalaLibVersion = "3.2.2"
 val versionsVersion = "1.0.0-20230420_1346_master"
 val amazonVersion = "1.12.196"
-val undertowVersion = "2.0.15.Final"
 
 scalacOptions in Global ++= Seq("-deprecation", "-unchecked", "-feature")
 
@@ -47,15 +46,17 @@ lazy val locus =
     .jvmProject("a8-locus", file("../locus"), "locus")
     .settings(
       libraryDependencies ++= Seq(
+
         "dev.zio" %% "zio-http" % "3.0.0-RC1",
         "commons-net" % "commons-net" % "3.9.0",
         "io.accur8" %% "a8-versions" % versionsVersion % "compile",
-        "org.scalatest" %% "scalatest" % "3.2.14" % Test,
-        "io.undertow" % "undertow-core" % undertowVersion,
         "com.amazonaws" % "aws-java-sdk-s3" % amazonVersion % "compile",
         "net.sourceforge.htmlcleaner" % "htmlcleaner" % "2.24",
         "jakarta.xml.bind" % "jakarta.xml.bind-api" % "2.3.2",
         "org.glassfish.jaxb" % "jaxb-runtime" % "2.3.2",
+
+        "org.scalatest" %% "scalatest" % "3.2.14" % Test,
+
       )
     )
 

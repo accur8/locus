@@ -5,28 +5,23 @@ import a8.locus.Config.{User, UserPrivilege}
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel
 import a8.locus.ResolvedModel.{ResolvedContent, ResolvedRepo}
-import a8.locus.Routing.Router
 import a8.locus.SharedImports.*
-import a8.locus.UndertowAssist.HttpResponse
-import a8.locus.ziohttp.ZHttpHandler.{FullPath, M}
+import a8.locus.ziohttp.model.{FullPath, M}
 import a8.shared.app.{Logging, LoggingF}
 import a8.sync.http
 import io.accur8.neodeploy.resolvedmodel.ResolvedRepository
-import io.undertow.server.{HttpHandler, HttpServerExchange}
-import io.undertow.util.{Headers, StatusCodes}
 import org.slf4j.MDC
 import org.typelevel.ci.CIString
-import a8.locus.ziohttp.ZHttpHandler.*
 import zio.http.{Method, Request}
+import model._
 
 case object ListReposHandler extends ZHttpHandler with LoggingF {
 
-  override lazy val matcher: ZHttpHandler.RequestMatcher =
+  override lazy val matcher: RequestMatcher =
     RequestMatcher(
       Seq(Method.GET),
       Seq(
-        FullPath(IndexedSeq.empty),
-        FullPath(IndexedSeq(CIString("index.html"))),
+        FullPath(IndexedSeq(CIString("repos"))),
       ),
     )
 

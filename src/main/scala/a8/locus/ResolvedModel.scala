@@ -12,7 +12,6 @@ import a8.locus.Config.{Repo, S3Config}
 import a8.locus.ResolvedModel.RepoContent
 import a8.locus.ResolvedModel.RepoContent.CacheFile
 import a8.locus.S3Assist.BucketName
-import a8.locus.UndertowAssist.{ContentType, HttpResponse, HttpResponseBody}
 import a8.locus.UrlAssist.BasicAuth
 import cats.data.Chain
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
@@ -21,12 +20,14 @@ import com.amazonaws.services.s3.model.{AmazonS3Exception, ObjectListing, Object
 import SharedImports.*
 import a8.locus.model.DateTime
 import a8.locus.ziohttp.ZHttpHandler
-import a8.locus.ziohttp.ZHttpHandler.M
+import a8.locus.ziohttp.model.M
 import a8.shared.{FileSystem, ZFileSystem}
 import a8.shared.FileSystem.{Directory, File}
 import a8.shared.app.{Logging, LoggingF}
 
 import java.time.LocalDateTime
+
+import ziohttp.model._
 
 object ResolvedModel {
 
@@ -42,7 +43,7 @@ object ResolvedModel {
 
   trait ContentGenerator {
     def canGenerateFor(urlPath: UrlPath): Boolean
-    def generate(urlPath: UrlPath, resolvedRepo: ResolvedRepo): Option[UndertowAssist.HttpResponseBody]
+    def generate(urlPath: UrlPath, resolvedRepo: ResolvedRepo): Option[HttpResponse]
   }
 
   lazy val contentGenerators: Chain[ContentGenerator] =
@@ -69,7 +70,7 @@ object ResolvedModel {
 
     def put(urlPath: UrlPath, content: File): HttpStatusCode
 
-    def resolveContentM(path: ContentPath): ZHttpHandler.M[Option[ResolvedContent]] =
+    def resolveContentM(path: ContentPath): M[Option[ResolvedContent]] =
       zblock(resolveContent(UrlPath.fromContentPath(path)))
 
     def putM(path: ContentPath, content: ZFileSystem.File): M[HttpStatusCode] =
@@ -277,7 +278,7 @@ object ResolvedModel {
     case class TempFile(file: File) extends RepoContent
     case class CacheFile(file: File) extends RepoContent
     case class Redirect(path: UrlPath) extends RepoContent
-    case class Generated(response: HttpResponseBody) extends RepoContent
+    case class Generated(response: HttpResponse) extends RepoContent
   }
 
 
@@ -379,7 +380,7 @@ object ResolvedModel {
 
       response.status match {
         case 200 if urlPath.isDirectory =>
-          Some(Generated(HttpResponseBody.fromBytes(response.body, ContentType.html)))
+          Some(Generated(HttpResponseBody.fromBytes(response.body, ContentTypes.html)))
         case 200 =>
           tempFile.write(response.bodyAsStream)
           Some(TempFile(tempFile))
@@ -454,7 +455,7 @@ case class ResolvedModel(
   lazy val tempRootZ = ZFileSystem.dir(tempRoot.absolutePath)
 
 
-  def withWorkDirectoryM[A](fn: a8.shared.ZFileSystem.Directory => ZHttpHandler.M[A]): ZHttpHandler.M[A] = {
+  def withWorkDirectoryM[A](fn: a8.shared.ZFileSystem.Directory => M[A]): M[A] = {
     val directory = {
       val date = LocalDateTime.now()
       val uuid: String = java.util.UUID.randomUUID().toString.replace("-", "").take(20)

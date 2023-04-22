@@ -10,7 +10,7 @@ import a8.locus.model.Uri
 import org.apache.commons.net.util.SubnetUtils
 import zio.prelude.Equal
 
-import java.net.{Inet4Address, Inet6Address, InetSocketAddress}
+import java.net.{Inet4Address, Inet6Address, InetAddress, InetSocketAddress}
 import scala.util.Try
 
 object Config {
@@ -62,12 +62,12 @@ object Config {
     secretKey: String,
   )
 
-  sealed trait UserPrivilege extends enumeratum.EnumEntry
+  sealed abstract class UserPrivilege(val ordinal: Int) extends enumeratum.EnumEntry
   object UserPrivilege extends enumeratum.Enum[UserPrivilege] {
     val values = findValues
-    case object Read extends UserPrivilege
-    case object Write extends UserPrivilege
-    case object Admin extends UserPrivilege
+    case object Read extends UserPrivilege(1)
+    case object Write extends UserPrivilege(2)
+    case object Admin extends UserPrivilege(3)
 
     implicit val eq: Equal[UserPrivilege] = Equal.make[UserPrivilege](_ == _)
 
@@ -96,14 +96,16 @@ object Config {
     anonymousSubnets: Iterable[SubnetUtils],
   ) {
 
-    def isInSubnet(socketAddress: InetSocketAddress, xforwardedForHeaderOpt: Option[String]): Boolean = {
+    val Ipv6Localhost = List(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+    def isInSubnet(remoteAddress: InetAddress, xforwardedForHeaderOpt: Option[String]): Boolean = {
 
       def isInAnonymousSubnet(resolvedAddressStr: String): Boolean =
         anonymousSubnets
           .exists(_.getInfo.isInRange(resolvedAddressStr))
 
-      val address = socketAddress.getAddress
-      val addressStr = socketAddress.getHostString
+      val addressBytesList = remoteAddress.getAddress.toList
+      val addressStr = remoteAddress.getHostAddress
 
       val isProxyServer =
         Try(
@@ -111,10 +113,9 @@ object Config {
         ).getOrElse(false)
 
       val result =
-        (address, xforwardedForHeaderOpt) match {
-          case (_: Inet4Address, _) =>
+        (addressBytesList, xforwardedForHeaderOpt) match {
+          case (List(b0, b1, b2, b3), _) =>
             try {
-
               val resolvedAddress =
                 xforwardedForHeaderOpt
                   .filter(_ => isProxyServer)
@@ -124,21 +125,21 @@ object Config {
 
             } catch {
               case e: Exception =>
-                logger.error(s"unable to process access from ${address} ${xforwardedForHeaderOpt} will report as not in anonymous subnet", e)
+                logger.error(s"unable to process access from ${addressBytesList} ${xforwardedForHeaderOpt} will report as not in anonymous subnet", e)
                 false
             }
-          case (_: Inet6Address, Some(xforwardedForHeader)) if addressStr === "0:0:0:0:0:0:0:1" =>
+          case (Ipv6Localhost, Some(xforwardedForHeader)) =>
             isInAnonymousSubnet(xforwardedForHeader)
 
-          case (_: Inet6Address, _) =>
-            logger.debug(s"unable to allow anonymous access from ipv6 address ${addressStr} -- IPV6 addreses are not supported for anonymous access")
-            false
+          case (Ipv6Localhost, None) =>
+            isInAnonymousSubnet("127.0.0.1")
+
           case _ =>
-            logger.debug(s"don't know how to handle inet address ${addressStr} with type of ${address.getClass}")
+            logger.debug(s"don't know how to handle inet address ${addressStr} -- ${addressBytesList}")
             false
         }
 
-      logger.debug(s"allow anonymous access check from ${address} ${xforwardedForHeaderOpt} ${isProxyServer} -- allow anonymous = ${result}")
+      logger.debug(s"allow anonymous access check from ${addressBytesList} ${xforwardedForHeaderOpt} ${isProxyServer} -- allow anonymous = ${result}")
 
       result
 
@@ -155,12 +156,16 @@ object Config {
     name: String,
     password: String,
     privilege: UserPrivilege = UserPrivilege.Read,
-  )
+  ) {
+    def hasPrivilege(privilege: UserPrivilege) =
+      privilege.ordinal <= this.privilege.ordinal
+  }
 
   object LocusConfig extends MxLocusConfig
 
   @CompanionGen
   case class LocusConfig(
+    protocol: String = "https",
     proxyServerAddresses: Iterable[String] = Iterable("127.0.0.0/8"),
     anonymousSubnets: Iterable[String] = Iterable.empty,
     dataDirectory: String,

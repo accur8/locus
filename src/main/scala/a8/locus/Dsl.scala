@@ -4,7 +4,7 @@ package a8.locus
 import a8.shared.json.{JsonCodec, JsonTypedCodec, ast}
 import SharedImports.*
 import a8.locus.ResolvedModel.ContentPath
-import a8.locus.ziohttp.ZHttpHandler.Path
+import a8.locus.ziohttp.model.Path
 
 // TODO move this code into a shared location (model3 project) that can be shared by odin/mugatu/server and this aka for https://accur8.atlassian.net/browse/ODIN-2013
 object Dsl {
@@ -68,6 +68,8 @@ object Dsl {
     parts: Iterable[String],
     isDirectory: Boolean,
   ) {
+
+    def zioPath = zio.http.Path.decode("/" + toString)
 
     def contentPath(basePath: Path): Option[ContentPath] = {
       val basePathParts = parts.take(basePath.parts.size).toIndexedSeq

@@ -14,7 +14,6 @@ import io.undertow.util.HttpString
 import SharedImports._
 import a8.locus.Config.{SubnetManager, User}
 import a8.locus.ResolvedModel.ResolvedRepo
-import a8.locus.UndertowAssist.{HttpResponse, HttpResponseBody}
 import org.apache.commons.net.util.SubnetUtils
 
 // TODO move this code into a shared location (model3 project) that can be shared by odin/mugatu/server and this aka for https://accur8.atlassian.net/browse/ODIN-2013
@@ -48,7 +47,7 @@ object Routing {
         "post",
       )
 
-    import a8.locus.UndertowAssist.ExchangeOps
+    import .ExchangeOps
 
     def anonymousLogin(exchange: HttpServerExchange): Option[User] =
       anonymousSubnetManager

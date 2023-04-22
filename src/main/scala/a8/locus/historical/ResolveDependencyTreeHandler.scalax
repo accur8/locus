@@ -10,9 +10,7 @@ import a8.versions.model.{RepoPrefix, ResolutionRequest}
 import coursier.Resolution
 import coursier.core.{Module, Organization}
 import coursier.util.Artifact
-import io.undertow.server.{HttpHandler, HttpServerExchange}
 import SharedImports._
-import io.undertow.util.{Headers, Methods, StatusCodes}
 
 object ResolveDependencyTreeHandler {
 

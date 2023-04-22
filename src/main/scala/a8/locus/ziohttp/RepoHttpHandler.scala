@@ -3,21 +3,17 @@ package a8.locus.ziohttp
 
 import a8.locus.Config.{Subnet, SubnetManager, User, UserPrivilege}
 import a8.locus.Dsl.UrlPath
-import a8.locus.{ResolvedModel, UndertowAssist}
+import a8.locus.ResolvedModel
 import a8.locus.ResolvedModel.RepoContent.TempFile
 import a8.locus.ResolvedModel.{ContentPath, ResolvedContent, ResolvedRepo}
-import a8.locus.Routing.Router
-import a8.locus.UndertowAssist.HttpResponse
 import a8.shared.app.Logging
-import io.undertow.server.{HttpHandler, HttpServerExchange}
-import io.undertow.util.{Headers, StatusCodes}
 import org.apache.commons.net.util.SubnetUtils
 import org.slf4j.MDC
 
 import java.nio.ByteBuffer
-import a8.locus.ziohttp.ZHttpHandler.*
 import a8.locus.SharedImports.*
 import zio.http.Method
+import model._
 
 object RepoHttpHandler {
 
@@ -54,18 +50,18 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
   override def respond(req: Request): M[HttpResponse] =
     methodHandlers.get(req.method) match {
       case None =>
-        zsucceed(UndertowAssist.HttpResponse.methodNotAllowed("" + req.method + " is not allowed"))
+        zsucceed(HttpResponse.methodNotAllowed("" + req.method + " is not allowed"))
       case Some(mh) =>
         val fullPath = UrlPath.fromZHttpPath(req.path)
         fullPath.contentPath(basePath) match {
           case Some(contentPath) =>
             for {
               userService <- zservice[UserService]
-              _ <- userService.requirePrivilege(mh.requiredPrivilege)
+              _ <- userService.requirePrivilege(mh.requiredPrivilege, req)
               response <- mh.handler(req, contentPath)
             } yield response
           case None =>
-            UndertowAssist.HttpResponse.errorz(s"mismatched paths ${fullPath} and ${basePath}.  This should not happen.")
+            HttpResponse.errorz(s"mismatched paths ${fullPath} and ${basePath}.  This should not happen.")
         }
     }
 
@@ -86,11 +82,11 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
 
   def doHead(request: Request, path: ContentPath): M[HttpResponse] =
     resolveContent(path)
-      .map {
+      .flatMap {
         case Some(_) =>
-          HttpResponse.Ok
+          HttpResponses.Ok()
         case None =>
-          HttpResponse.notFound()
+          HttpResponses.NotFound()
       }
 
   def resolveContent(path: ContentPath): M[Option[ResolvedContent]] = {
@@ -108,8 +104,8 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
               HttpResponse.fromFile(file)
             case TempFile(file) =>
               HttpResponse.fromFile(file)
-            case Generated(responseBody) =>
-              responseBody.asOkResponse
+            case Generated(response) =>
+              response
             case Redirect(path) =>
               val rootPath = UrlPath.fromZHttpPath(request.path)
               HttpResponse.permanentRedirect(rootPath.append(path))

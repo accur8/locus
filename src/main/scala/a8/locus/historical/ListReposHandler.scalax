@@ -12,8 +12,6 @@ import org.slf4j.MDC
 
 case class ListReposHandler(router: Router) extends HttpHandler with Logging {
 
-  import UndertowAssist._
-
   import router.resolvedModel
 
   case class Request(

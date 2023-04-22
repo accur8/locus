@@ -1,82 +1,72 @@
 package a8.locus
 
+import a8.locus.Config.{LocusConfig, SubnetManager}
+import a8.locus.SharedImports.*
+import a8.locus.model.*
+import a8.locus.ziohttp.Router
+import a8.locus.{ResolvedModel, ziohttp}
+import a8.shared.ConfigMojo
+import a8.shared.app.BootstrappedIOApp.BootstrapEnv
+import a8.shared.app.{BootstrappedIOApp, LoggingF}
+import zio.http.HttpError.{BadRequest, InternalServerError}
+import zio.http.Method.{GET, POST}
+import zio.http.*
+import zio.{Chunk, Task, ZIO}
 
-import a8.shared.app.{A8LogFormatter, Logging}
-import a8.shared.{CascadingHocon, ConfigMojo}
-import io.undertow.Undertow
-import wvlet.log.LogFormatter.SourceCodeLogFormatter
-import wvlet.log.{ConsoleLogHandler, LogLevel, Logger}
+import java.net.InetAddress
 
-object LocusMain extends Logging {
+object LocusMain extends BootstrappedIOApp {
 
-  def run(): Unit = {
-    val server = new Server(resolvedModel)
-    server.run()
-  }
+  type Env = Any
 
-  lazy val serverConfig: Config.LocusConfig =
+  override def runT: ZIO[BootstrapEnv, Throwable, Unit] =
+    Server
+      .serve(router.routes)
+      .provide(Server.defaultWithPort(serverConfig.port))
+
+  lazy val router = Router(serverConfig, resolvedModel, anonymousSubnetManager)
+
+  lazy val serverConfig: LocusConfig =
     ConfigMojo
       .root
       .locus
       .server
-      .as[Config.LocusConfig]
+      .as[LocusConfig]
 
   lazy val resolvedModel: ResolvedModel =
     ResolvedModel(serverConfig)
 
-  lazy val initLogLevels = {
-    Seq(
-      "org.xnio",
-      "org.apache.http",
-      "jdk.event",
-      "com.amazonaws.services.s3.internal.Mimetypes",
-      "com.amazonaws.auth.AWS4Signer",
-      "com.amazonaws.http.conn.ssl.SdkTLSSocketFactory",
-      "javax.xml.bind",
-      "com.amazonaws.internal.SdkSSLSocket",
-      "com.amazonaws.requestId",
-      "com.amazonaws.retry.ClockSkewAdjuster",
-      "com.amazonaws.services.s3.model.transform.XmlResponsesSaxParser",
-    ).foreach(l =>
-      Logger(l).setLogLevel(LogLevel.INFO)
-    )
-  }
+  lazy val anonymousSubnetManager: SubnetManager = {
 
-  def main(args: Array[String]): Unit = {
-    try {
-      wvlet.airframe.log.init
-      Logger.rootLogger.resetHandler(new ConsoleLogHandler(A8LogFormatter.ColorConsole))
-      Logger.setDefaultLogLevel(LogLevel.DEBUG)
-      initLogLevels
-      run()
-    } catch {
-      case th: Throwable =>
-        logger.error("Error running Locus", th)
-        th.printStackTrace()
+    import org.apache.commons.net.util.SubnetUtils
+
+    def parseSubnetUtils(subnetStr: String): Option[SubnetUtils] = {
+      try {
+        Some(new SubnetUtils(subnetStr))
+      } catch {
+        case e: Exception =>
+          logger.error(s"invalid subnet in config -- ${subnetStr}", e)
+          None
+      }
     }
-  }
 
-}
+    val anonymousSubnets =
+      resolvedModel
+        .config
+        .anonymousSubnets
+        .flatMap(parseSubnetUtils)
 
+    val proxyServerAddresses =
+      resolvedModel
+        .config
+        .proxyServerAddresses
+        .flatMap(parseSubnetUtils)
 
+    SubnetManager(
+      proxyServerAddresses,
+      anonymousSubnets,
+    )
 
-class Server(resolvedModel: ResolvedModel) {
-
-  lazy val serverPort: Int = resolvedModel.config.port
-
-  lazy val routing: Routing =
-    Routing(resolvedModel)
-
-  lazy val instance: Undertow =
-    Undertow
-      .builder
-      .addHttpListener(serverPort, "0.0.0.0")
-      .setHandler(routing.rootHandler)
-      .build()
-
-
-  def run(): Unit = {
-    instance.start()
   }
 
 }

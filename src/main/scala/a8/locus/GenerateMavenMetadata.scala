@@ -4,12 +4,12 @@ package a8.locus
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry, ResolvedS3Repo}
 import a8.locus.S3Assist.Entry
-import a8.locus.UndertowAssist.{ContentType, HttpResponseBody}
 import a8.locus.model.DateTime
 import a8.shared.jdbcf.querydsl.QueryDsl.valueToConstant
 import a8.versions.{BuildTimestamp, Version, VersionParser}
 import cats.data.Chain
-import SharedImports._
+import SharedImports.*
+import a8.locus.ziohttp.model.{HttpResponse, HttpResponseBody}
 
 import java.time.Month
 
@@ -29,7 +29,7 @@ object GenerateMavenMetadata extends ContentGenerator {
   override def canGenerateFor(urlPath: UrlPath): Boolean =
     urlPath.last =:= "maven-metadata.xml"
 
-  override def generate(urlPath: UrlPath, resolvedRepo: ResolvedModel.ResolvedRepo): Option[HttpResponseBody] = {
+  override def generate(urlPath: UrlPath, resolvedRepo: ResolvedModel.ResolvedRepo): Option[HttpResponse] = {
 
     resolvedRepo.entries(urlPath.parent).flatMap { entries =>
 

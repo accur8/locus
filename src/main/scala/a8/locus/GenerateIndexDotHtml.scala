@@ -5,15 +5,15 @@ import a8.locus.Dsl.UrlPath
 import a8.locus.S3Assist.BucketName
 import com.amazonaws.services.s3.AmazonS3
 import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry}
-import a8.locus.UndertowAssist.HttpResponseBody
 import SharedImports._
+import ziohttp.model._
 
 object GenerateIndexDotHtml extends ContentGenerator {
 
   override def canGenerateFor(urlPath: UrlPath): Boolean =
     urlPath.last =:= "index.html"
 
-  override def generate(urlPath: UrlPath, resolvedRepo: ResolvedModel.ResolvedRepo): Option[HttpResponseBody] = {
+  override def generate(urlPath: UrlPath, resolvedRepo: ResolvedModel.ResolvedRepo): Option[HttpResponse] = {
     // really bad implementation of index.html
     val entriesOpt =
       resolvedRepo

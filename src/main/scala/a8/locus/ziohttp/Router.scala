@@ -1,63 +1,21 @@
 package a8.locus.ziohttp
 
-
-import a8.locus.{ResolvedModel, UndertowAssist, ziohttp}
-import a8.shared.app.{BootstrappedIOApp, LoggingF}
-import a8.shared.app.BootstrappedIOApp.BootstrapEnv
+import a8.locus.Config.{LocusConfig, SubnetManager}
+import a8.locus.ResolvedModel
+import a8.shared.app.LoggingF
 import zio.{Chunk, Task, ZIO}
-import zio.http.HttpError.{BadRequest, InternalServerError}
-import zio.http.Method.{GET, POST}
-import zio.http.{Body, Headers, Http, HttpApp, HttpError, Method, Request, Response, Server, Status, URL, Version}
+import zio.http.{Body, Http, HttpApp, HttpError, Request, Response, Status}
 
-import java.net.InetAddress
-import ZHttpHandler.{HttpResponseException, Path}
-import a8.locus.SharedImports.*
-import a8.locus.ziohttp.Main.Config
-import Router.{PreFlightRequest, RequestMeta}
-
-object Main extends BootstrappedIOApp {
-
-  type Env = Any
-
-  lazy val httpPort = 8080
-
-  case class Config(
-    protocolForCurlLogging: String,
-  )
-
-  override def runT: ZIO[BootstrapEnv, Throwable, Unit] = ???
-
-}
-
-object Router {
-
-  case class RequestMeta(
-    curlLogRequestBody: Boolean
-  )
-
-  case class PreFlightRequest(
-    method: zio.http.Method,
-    path: ZHttpHandler.FullPath,
-  )
-
-}
+import a8.locus.ziohttp.model._
+import a8.locus.SharedImports._
 
 case class Router(
-  config: Config,
+  config: LocusConfig,
   resolvedModel: ResolvedModel,
+  anonymousSubnetManager: SubnetManager,
 )
   extends LoggingF
 {
-
-  import ZHttpHandler.Env
-
-  def runT: ZIO[BootstrapEnv, Throwable, Unit] =
-    ???
-//    Server.start[Env](
-//      InetAddress.getByName("0.0.0.0"),
-//      httpPort,
-//      routes,
-//    )
 
   lazy val repoHandlers =
     resolvedModel
@@ -69,21 +27,15 @@ case class Router(
   val handlers = repoHandlers ++ Seq(ListReposHandler, RootHandler)
 
 
-  case class PreparedRequest(
-    requestMeta: RequestMeta,
-    responseEffect: Request=>ZIO[Env, Throwable, Response],
-  )
-
   def prepareRequest(preFlightRequest: PreFlightRequest): PreparedRequest =
     handlers
       .find(_.matcher.matches(preFlightRequest))
       .map { handler =>
         val responseFn: Request=>ZIO[Env, Throwable, Response] =
-          { req =>
-            handler
-              .respond(req)
-              .map(toZHttpResponse)
-          }
+        { req =>
+          handler
+            .respond(req)
+        }
         PreparedRequest(
           handler.preFlightRequestMeta(preFlightRequest),
           responseFn,
@@ -96,12 +48,9 @@ case class Router(
         )
       )
 
-  def notFound(request: Request): ZIO[Env, Throwable, Response] = ??? //HttpResponses.NotFound(s"no match found for request ${rawRequest.url.encode} with http method ${rawRequest.method}")
+  def notFound(request: Request): ZIO[Env, Throwable, Response] = HttpResponses.NotFound(s"no match found for request ${request.url.encode} with http method ${request.method}")
 
-  def toZHttpResponse(response: UndertowAssist.HttpResponse): zio.http.Response =
-    ???
-
-  lazy val routes: HttpApp[Env, Throwable] =
+  lazy val routes: HttpApp[Any, Nothing] =
     Http.collectZIO[Request] { rawRequest =>
       val preFlightRequest = PreFlightRequest(rawRequest.method, Path.fromzioPath(rawRequest.path))
       val context = s"${rawRequest.method} ${rawRequest.url.encode}"
@@ -118,7 +67,7 @@ case class Router(
               .either
               .flatMap {
                 case Left(HttpResponseException(httpResponse)) =>
-                  zsucceed(toZHttpResponse(httpResponse))
+                  zsucceed(httpResponse)
                 case Left(httpError: HttpError) =>
                   loggerF.warn(s"Error servicing request: ${context}, responding with ${httpError}") *>
                     HttpResponses.fromError(httpError)
@@ -131,10 +80,27 @@ case class Router(
           _ <- loggerF.debug(s"completed processing ${response.status.code} -- ${context}")
         } yield response
 
-      effect.correlateWith(context)
-
+      val fullEffect: zio.ZIO[Any, Nothing, Response] =
+        effect
+          .either
+          .flatMap {
+            case Left(th) =>
+              // this shouldn't happen but we will turn this into a 500 error
+              loggerF.warn(s"Cleaning up unexpected error: ${context}, responding with 500", th) *>
+                HttpResponses.text(th.stackTraceAsString, status = Status.InternalServerError)
+            case Right(response) =>
+              zsucceed(response)
+          }
+          .correlateWith(context)
+          .scoped
+          .provide(
+            zl_succeed(config),
+            UserService.layer,
+            zl_succeed(resolvedModel),
+            zl_succeed(anonymousSubnetManager),
+          )
+      fullEffect
     }
-
 
   def curl(request: Request, logRequestBody: Boolean): Task[(String,Request)] = {
     if ( logRequestBody ) {
@@ -151,7 +117,7 @@ case class Router(
       //          val requestBodyStr = new String(requestBodyByteBuf.array())
       val initialLines: Chunk[String] = Chunk("curl", s"-X ${request.method}")
       val headerLines: Chunk[String] = request.headers.map(h => s"-H '${h.headerName}: ${h.renderedValue}'").toChunk
-      val url: Chunk[String] = Chunk(s"${config.protocolForCurlLogging}://${request.rawHeader("Host").getOrElse("nohost")}${request.url.encode}")
+      val url: Chunk[String] = Chunk(s"${config.protocol}://${request.rawHeader("Host").getOrElse("nohost")}${request.url.encode}")
       (initialLines ++ headerLines ++ url)
         .mkString(" \\\n    ")
     }
@@ -167,7 +133,7 @@ case class Router(
         //          val requestBodyStr = new String(requestBodyByteBuf.array())
         val initialLines: Chunk[String] = Chunk("curl", s"-X ${request.method}")
         val headerLines: Chunk[String] = request.headers.filterNot(_.headerName.toLowerCase === "host").map(h => s"-H '${h.headerName}: ${h.renderedValue}'").toChunk
-        val url: Chunk[String] = Chunk(s"'${config.protocolForCurlLogging}://${request.rawHeader("Host").getOrElse("nohost")}${request.url.encode}'")
+        val url: Chunk[String] = Chunk(s"'${config.protocol}://${request.rawHeader("Host").getOrElse("nohost")}${request.url.encode}'")
         val requestBody = Chunk.fromIterable(requestBodyStr.map(rbs => s"--data '${rbs}'"))
         (initialLines ++ headerLines ++ url ++ requestBody)
           .mkString(" \\\n    ")
@@ -195,5 +161,5 @@ case class Router(
           impl(bodyStr.some)
       }
   }
-  
+
 }
