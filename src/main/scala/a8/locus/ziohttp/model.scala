@@ -98,6 +98,21 @@ object model {
     override def matches(path: FullPath): Boolean =
       path.parts.startsWith(parts)
   }
+
+  object FullPath {
+    def apply(parts: (String | CiString)*): FullPath =
+      FullPath(
+        parts
+          .map {
+            case s: CiString =>
+              s
+            case s: String =>
+              CiString(s)
+          }
+          .toIndexedSeq
+      )
+  }
+
   case class FullPath(parts: IndexedSeq[CiString]) extends Path {
     override def matches(path: FullPath): Boolean =
       parts == path.parts
@@ -135,8 +150,9 @@ object model {
     val empty = ContentType(MediaType("", ""))
     val html = ContentType.parse("text/html").toOption.get
     val xml = ContentType.parse("text/xml").toOption.get
-
+    val json = ContentType.parse("application/json").toOption.get
   }
+
 
   object HttpResponseBody {
 

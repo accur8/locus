@@ -7,6 +7,7 @@ import zio.{Chunk, Layer, Task, ZIO}
 import zio.http.{Body, Http, HttpApp, HttpError, Request, Response, Status}
 import a8.locus.ziohttp.model.*
 import a8.locus.SharedImports.*
+import a8.versions.GenerateJavaLauncherDotNix
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.S3Exception
 import zio.s3.S3
@@ -28,7 +29,16 @@ case class Router(
         RepoHttpHandler(resolvedModel, resolvedRepo)
       }
 
-  val handlers = repoHandlers ++ Seq(ListReposHandler, RootHandler)
+  lazy val baseHandlers =
+    Seq(
+      ListReposHandler,
+      RootHandler,
+      ResolveDependencyTreeHandler,
+      JavaLauncherDotNixHandler(true),
+      JavaLauncherDotNixHandler(false),
+    )
+
+  val handlers = repoHandlers ++ baseHandlers
 
 
   def prepareRequest(preFlightRequest: PreFlightRequest): PreparedRequest =
