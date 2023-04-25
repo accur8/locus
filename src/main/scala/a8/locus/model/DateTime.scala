@@ -2,7 +2,9 @@ package a8.locus.model
 
 import a8.shared.json.ast.JsStr
 import a8.shared.json.{JsonCodec, JsonTypedCodec}
+import wvlet.log.Logger
 
+import java.time.format.DateTimeFormatter
 import java.time.{LocalDateTime, Month, ZoneId, ZoneOffset}
 import java.util.GregorianCalendar
 
@@ -11,6 +13,8 @@ object DateTime {
 
   val empty: DateTime =
     apply(0L)
+
+  lazy val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
   implicit val format: JsonTypedCodec[DateTime,JsStr] =
     JsonTypedCodec.string.dimap[DateTime] (
@@ -53,7 +57,10 @@ object DateTime {
   implicit val ordering: Ordering[DateTime] =
     Ordering.by[DateTime,Long](_.epoc)
 
-  def uberParse(value: String): DateTime = ???
+  def uberParse(value: String): DateTime = {
+    val ldt = LocalDateTime.parse(value, dateTimeFormatter)
+    DateTime(ldt)
+  }
 
 }
 

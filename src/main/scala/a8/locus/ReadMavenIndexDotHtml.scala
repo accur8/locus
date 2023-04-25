@@ -4,7 +4,7 @@ import java.io.StringReader
 import org.htmlcleaner.{ContentNode, HtmlCleaner, TagNode}
 
 import scala.xml.XML
-import a8.locus.ResolvedModel.{DirectoryEntry, ResolvedRepo}
+import a8.locus.ResolvedModel.{DirectoryEntry}
 import SharedImports._
 import a8.locus.model.DateTime
 

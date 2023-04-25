@@ -2,50 +2,91 @@ package a8.locus
 
 
 import a8.locus.Dsl.UrlPath
-import a8.locus.ResolvedModel.ContentGenerator
-import a8.locus.ResolvedModel.RepoContent.{CacheFile, TempFile}
+import a8.locus.ResolvedModel.{ContentGenerator, RepoContent}
+import a8.locus.ResolvedModel.RepoContent.{CacheFile, GeneratedContent, TempFile}
 import a8.locus.SharedImports.*
 import a8.locus.model.DateTime
 import a8.locus.ziohttp.model.{HttpResponse, HttpResponseBody}
-import a8.shared.FileSystem.File
+import a8.shared.FileSystem
+import a8.shared.ZFileSystem
+import a8.shared.ZFileSystem.File
 import a8.versions.{BuildTimestamp, Version}
 import org.apache.commons.codec.digest.DigestUtils
+import zio.ZIO
 
 import java.time.Month
+import ziohttp.model.*
 
 object GenerateSha256 extends ContentGenerator {
 
   val extension = ".sha256"
 
+  object impl {
+    def runDigest(file: ZFileSystem.File, fn: java.io.InputStream => String): M[String] =
+      zblock {
+        FileSystem
+          .file(file.absolutePath)
+          .withInputStream(fn(_))
+      }
+  }
+  import impl._
+
+  case object Sha256Validator extends Validator(".sha256") {
+    override def digest(content: File): M[String] =
+      runDigest(content, DigestUtils.sha256Hex)
+  }
+
   case object Md5Validator extends Validator(".md5") {
-    override def digest(content: File): String =
-      DigestUtils.md5Hex(content.readBytes())
+    override def digest(content: File): M[String] =
+      runDigest(content, DigestUtils.md5Hex)
   }
 
   case object Sha1Validator extends Validator(".sha1") {
-    override def digest(content: File): String =
-      DigestUtils.sha1Hex(content.readBytes())
+    override def digest(content: File): M[String] =
+      runDigest(content, DigestUtils.sha1Hex)
   }
 
+  // we do not want / need the Sha256 validator here since repos don't do Sha256
   val validators = Vector(Md5Validator, Sha1Validator)
 
-  override def canGenerateFor(urlPath: UrlPath): Boolean =
-    urlPath.parts.last.endsWith(extension)
+  override def canGenerateFor(contentPath: ContentPath): Boolean =
+    contentPath.parts.last.endsWith(extension)
 
-  override def generate(sha256Path: UrlPath, resolvedRepo: ResolvedModel.ResolvedRepo): Option[HttpResponse] = {
-    val resultOpt =
-      for {
-        basePath <- sha256Path.dropExtension
-        contentFile <- resolveContentAsFile(basePath, resolvedRepo)
-      } yield {
-        val validations = validators.flatMap(_.validate(basePath, contentFile, resolvedRepo))
-        if ( validations.forall(_ == ValidationResult.Valid) ) {
-          Some(HttpResponseBody.fromStr(DigestUtils.sha256Hex(contentFile.readBytes())))
-        } else {
-          None
+  override def generate(sha256Path: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
+    val effectOpt: Option[ZIO[Env, Throwable, Option[RepoContent]]] =
+      sha256Path.dropExtension.map { basePath =>
+        resolveContentAsFile(basePath, resolvedRepo).flatMap {
+          case None =>
+            zsucceed(None)
+          case Some(contentFile) =>
+            validators
+              .map(_.validate(basePath, contentFile, resolvedRepo))
+              .sequencePar
+              .map(_.flatten)
+              .flatMap { validations =>
+                if (validations.forall(_ == ValidationResult.Valid)) {
+                  Sha256Validator
+                    .digest(contentFile)
+                    .map( digest =>
+                      GeneratedContent(
+                        resolvedRepo,
+                        contentType = None,
+                        content = digest,
+                      ).some
+                    )
+//                    DigestUtils.sha256Hex()
+//                      .withInputStream( inputStream =>
+//                      Some(HttpResponseBody.fromStr(DigestUtils.sha256Hex(inputStream)))
+//                    )
+//                  }
+                } else {
+                  // respond noting failing checksums in a header
+                  zsucceed(None)
+                }
+              }
         }
       }
-    resultOpt.flatten
+    effectOpt.getOrElse(zsucceed(None))
   }
 
 
@@ -57,39 +98,45 @@ object GenerateSha256 extends ContentGenerator {
 
   abstract class Validator(extension: String) {
 
-    def digest(content: File): String
+    def digest(content: ZFileSystem.File): M[String]
 
-    def validate(basePath: UrlPath, contentFile: File, resolvedRepo: ResolvedModel.ResolvedRepo): Option[ValidationResult] = {
+    def validate(basePath: ContentPath, contentFile: ZFileSystem.File, resolvedRepo: ResolvedRepo): M[Option[ValidationResult]] = {
       val checksumPath = basePath.appendExtension(extension)
-      for {
-        checksumFile <- resolveContentAsFile(checksumPath, resolvedRepo)
-      } yield isChecksumValid(contentFile, checksumFile)
+      resolveContentAsFile(checksumPath, resolvedRepo)
+        .flatMap {
+          case Some(checksumFile) =>
+            isChecksumValid(contentFile, checksumFile)
+              .map(Some(_))
+          case None =>
+            zsucceed(None)
+        }
     }
 
-    def isChecksumValid(contentFile: File, checksumFile: File): ValidationResult = {
-      val expectedChecksum = checksumFile.readAsString().trim.toLowerCase
-      val actualChecksum = digest(contentFile).toLowerCase
-      if ( actualChecksum === expectedChecksum ) {
-        ValidationResult.Valid
-      } else {
-        ValidationResult.Invalid(s"checksum mismatch actual != expected -- ${actualChecksum} != ${expectedChecksum}")
+    def isChecksumValid(contentFile: ZFileSystem.File, checksumFile: ZFileSystem.File): M[ValidationResult] =
+      for {
+        expectedChecksum <- checksumFile.readAsString
+        actualChecksum <- digest(contentFile)
+      } yield {
+        def scrub(s: String) = s.trim.toLowerCase
+        if (scrub(actualChecksum) === scrub(expectedChecksum)) {
+          ValidationResult.Valid
+        } else {
+          ValidationResult.Invalid(s"checksum mismatch actual != expected -- ${actualChecksum} != ${expectedChecksum}")
+        }
       }
-    }
 
   }
 
-  def resolveContentAsFile(path: UrlPath, resolvedRepo: ResolvedModel.ResolvedRepo): Option[File] =
-    for {
-      resolvedContent <- resolvedRepo.resolveContent(path)
-      file <-
-        resolvedContent.content match {
-          case TempFile(file) =>
-            Some(file)
-          case CacheFile(file) =>
-            Some(file)
-          case _ =>
-            None
-        }
-    } yield file
+  def resolveContentAsFile(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[File]] =
+    resolvedRepo
+      .resolveContent(contentPath)
+      .map {
+        case Some(TempFile(file, _)) =>
+          Some(file)
+        case Some(CacheFile(file, _)) =>
+          Some(file)
+        case _ =>
+          None
+      }
 
 }

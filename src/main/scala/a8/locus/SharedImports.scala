@@ -4,12 +4,13 @@ import a8.shared.app.Logging
 import a8.shared.json.ast.JsStr
 import a8.shared.json.{JsonCodec, JsonTypedCodec}
 import zio.prelude.Equal
+import scala.language.implicitConversions
 
 object SharedImports extends a8.shared.SharedImports with Logging {
 
   type CiString = CIString
   val CiString = CIString
-  implicit val ciStringCodec: JsonTypedCodec[CiString,JsStr] =
+  implicit val ciStringCodec: JsonTypedCodec[CiString, JsStr] =
     JsonTypedCodec.string.dimap[CiString](
       CIString(_),
       _.toString,
@@ -48,4 +49,31 @@ object SharedImports extends a8.shared.SharedImports with Logging {
 
   }
 
+  implicit def moreImplicitZioOps[R, E, A](effect: zio.ZIO[R, E, A]): MoreZioOps[R, E, A] =
+    new MoreZioOps(effect)
+
+  class MoreZioOps[R, E, A](effect: zio.ZIO[R, E, A])(implicit trace: zio.Trace) {
+
+    /**
+      * wraps the effect to log the start of the effect and
+      * it's success value and/or its error value
+      */
+    def traceDebug(context: String, maxLength: Int = 256)(implicit loggerF: a8.shared.app.LoggerF, trace: zio.Trace): zio.ZIO[R, E, A] =
+      loggerF.debug(s"start ${context}")
+        .flatMap(_ => effect)
+        .flatMap { v =>
+          val vToString =
+            v.toString match {
+              case s if s.length > maxLength =>
+                s.substring(0, maxLength) + ". . ."
+              case s =>
+                s
+            }
+          loggerF.debug(s"success ${context} -- ${vToString}")
+            .as(v)
+        }
+        .onError { cause =>
+          loggerF.debug(s"error ${context}", cause)
+        }
+  }
 }

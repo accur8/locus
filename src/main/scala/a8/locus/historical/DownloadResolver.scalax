@@ -1,0 +1,41 @@
+package a8.locus
+
+import a8.shared.ZFileSystem
+import a8.shared.app.LoggingF
+import ZFileSystem.SymlinkHandlerDefaults.follow
+import SharedImports.*
+import ziohttp.model.*
+import ResolvedModel.*
+import a8.locus.ResolvedModel.RepoContent.CacheFile
+
+import java.nio.file.{Files, Paths, StandardCopyOption}
+trait DownloadResolver { self: ResolvedRepo with LoggingF =>
+
+  def downloadContent(contentPath: ContentPath, tempFile: ZFileSystem.File): M[Option[RepoContent]]
+    import RepoContent._
+    val localCacheFile = cacheFile(contentPath)
+    cachedContent(contentPath, true)
+      .flatMap {
+        case Some(rc) =>
+          zsucceed(Some(rc))
+        case None =>
+          resolvedModel.withWorkDirectory { workDir =>
+            val tempFile = workDir.file(localCacheFile.name)
+            downloadContent(contentPath, tempFile)
+              .flatMap { downloadedContent =>
+                val content =
+                  downloadedContent.map {
+                    case TempFile(file, writeToCache) =>
+                      logger.debug(s"moving ${file.absolutePath} to ${localCacheFile.absolutePath}")
+                      localCacheFile.parent.resolve
+                      Files.move(Paths.get(file.absolutePath), Paths.get(localCacheFile.absolutePath), StandardCopyOption.REPLACE_EXISTING)
+                      CacheFile(localCacheFile)
+                    case dc =>
+                      dc
+                  }
+                newResolvedContent(content, false)
+              }
+          }
+      }
+  }
+}

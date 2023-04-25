@@ -7,8 +7,6 @@ import a8.locus.S3Assist.{BucketName, Entry}
 import a8.locus.model.DateTime
 import a8.shared.ConfigMojo
 import a8.versions.{BuildTimestamp, Version, VersionParser}
-import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
-import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
 
 import java.time.Month
 

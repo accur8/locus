@@ -2,7 +2,7 @@ package a8.locus.ziohttp
 
 
 import a8.locus.Config.{LocusConfig, SubnetManager, User, UserPrivilege}
-import zio.http.{Headers, Request}
+import zio.http.{Header, Headers, Request}
 import a8.locus.ziohttp.model.*
 import a8.locus.SharedImports.*
 import zio.{ULayer, ZLayer}

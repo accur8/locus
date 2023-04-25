@@ -1,12 +1,14 @@
 package a8.locus.model
 
 
+import a8.locus.ziohttp.model.ContentPath
 import a8.shared.StringValue
 import a8.shared.json.{JsonCodec, JsonTypedCodec}
 
 import java.net.URI
-import a8.shared.SharedImports._
+import a8.shared.SharedImports.*
 import a8.shared.json.ast.JsStr
+import sttp.model.Uri.{EmptyPath, PathSegments}
 
 object Uri {
 
@@ -30,6 +32,8 @@ case class Uri(
   sttpUri: sttp.model.Uri,
 ) {
 
+  val root = sttpUri.copy(pathSegments = EmptyPath)
+
   val scheme: String = sttpUri.scheme.get
 
   val host: String = sttpUri.host.get
@@ -46,6 +50,10 @@ case class Uri(
 
   def /(suffix: String): Uri = {
     copy(sttpUri.addPath(suffix.split("/").toSeq))
+  }
+
+  def /(suffix: ContentPath): Uri = {
+    copy(sttpUri.addPath(suffix.parts))
   }
 
   override def toString =

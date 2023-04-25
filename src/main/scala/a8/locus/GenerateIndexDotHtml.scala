@@ -3,25 +3,34 @@ package a8.locus
 
 import a8.locus.Dsl.UrlPath
 import a8.locus.S3Assist.BucketName
-import com.amazonaws.services.s3.AmazonS3
-import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry}
-import SharedImports._
-import ziohttp.model._
+import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry, RepoContent}
+import SharedImports.*
+import a8.locus.ResolvedModel.RepoContent.GeneratedContent
+import ziohttp.model.*
 
 object GenerateIndexDotHtml extends ContentGenerator {
 
-  override def canGenerateFor(urlPath: UrlPath): Boolean =
-    urlPath.last =:= "index.html"
+  override def canGenerateFor(contentPath: ContentPath): Boolean =
+    contentPath.last =:= "index.html" || contentPath.isDirectory
 
-  override def generate(urlPath: UrlPath, resolvedRepo: ResolvedModel.ResolvedRepo): Option[HttpResponse] = {
+  override def generate(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
+    val dir =
+      if ( contentPath.isDirectory )
+        contentPath
+      else
+        contentPath.parent
     // really bad implementation of index.html
-    val entriesOpt =
-      resolvedRepo
-        .entries(urlPath.parent)
-        .map(_.toList.sortBy(_.name.toLowerCase))
-    entriesOpt.map { entries =>
-      HttpResponseBody.html(
-s"""
+    resolvedRepo
+      .entries(dir)
+      .map { entriesOpt =>
+        val entries =
+          entriesOpt
+            .toVector
+            .flatten
+            .sortBy(_.name.toLowerCase)
+        RepoContent.generateHtml(
+          resolvedRepo,
+              s"""
 <html>
   <body>
     <ul>
@@ -30,9 +39,9 @@ ${entries.map(e => s"<li>${link(e)} -- ${e.resolvedRepo.name}</li>").mkString("\
     </ul>
   </body>
 </html>
-""",
-      )
-    }
+              """.trim,
+        ).some
+       }
   }
 
   def link(e: DirectoryEntry): String =

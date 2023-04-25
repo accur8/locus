@@ -4,22 +4,24 @@ package a8.locus.ziohttp
 import a8.locus.Config.{Subnet, SubnetManager, User, UserPrivilege}
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel
+import a8.locus.ResolvedModel.PutResult
 import a8.locus.ResolvedModel.RepoContent.TempFile
-import a8.locus.ResolvedModel.{ContentPath, ResolvedContent, ResolvedRepo}
-import a8.shared.app.Logging
+import a8.locus.ResolvedRepo
+import a8.shared.app.LoggingF
 import org.apache.commons.net.util.SubnetUtils
 import org.slf4j.MDC
 
 import java.nio.ByteBuffer
 import a8.locus.SharedImports.*
-import zio.http.Method
-import model._
+import zio.http.{Body, Headers, Method}
+import model.*
+import zio.stream.ZStream
 
 object RepoHttpHandler {
 
 }
 
-case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedRepo) extends ZHttpHandler with Logging {
+case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedRepo) extends ZHttpHandler with LoggingF {
 
   case class RequestParms(
     urlPath: UrlPath,
@@ -66,22 +68,28 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
     }
 
   def doPut(request: Request, path: ContentPath): M[HttpResponse] =
-    resolvedModel.withWorkDirectoryM { dir =>
+    resolvedModel.withWorkDirectory { dir =>
       val tempFile = dir.file(path.parts.last)
       request
         .body
         .asStream
         .run(zio.stream.ZSink.fromFile(tempFile.asJioFile))
         .flatMap { _ =>
-          resolvedRepo.putM(path, tempFile)
+          resolvedRepo.put(path, tempFile)
         }
-        .map { sc =>
-          HttpResponse.emptyResponse(sc)
+        .flatMap {
+          case PutResult.Success =>
+            HttpResponses.Ok()
+          case PutResult.AlreadyExists =>
+            zsucceed(HttpResponse.conflict("path already exists"))
+          case PutResult.NotAllowed =>
+            zsucceed(HttpResponse.methodNotAllowed("PUT method not supported on this repo"))
         }
     }
 
   def doHead(request: Request, path: ContentPath): M[HttpResponse] =
-    resolveContent(path)
+    resolvedRepo
+      .resolveContent(path)
       .flatMap {
         case Some(_) =>
           HttpResponses.Ok()
@@ -89,24 +97,29 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
           HttpResponses.NotFound()
       }
 
-  def resolveContent(path: ContentPath): M[Option[ResolvedContent]] = {
-    resolvedRepo.resolveContentM(path)
-  }
-
   def doGet(request: Request, path: ContentPath): M[HttpResponse] = {
-    resolveContent(path)
+    resolvedRepo
+      .resolveContent(path)
       .map {
         case Some(resolvedContent) =>
-          logger.debug(s"resolved content using ${resolvedContent.repo.name}  fromCache = ${resolvedContent.fromCache}  ${resolvedContent.content}")
+          logger.debug(s"resolved content using ${resolvedContent.repo.name} -- ${resolvedContent}")
           import a8.locus.ResolvedModel.RepoContent.*
-          resolvedContent.content match {
-            case CacheFile(file) =>
+          resolvedContent match {
+            case CacheFile(file, _) =>
               HttpResponse.fromFile(file)
-            case TempFile(file) =>
+            case TempFile(file, _) =>
               HttpResponse.fromFile(file)
-            case Generated(response) =>
-              response
-            case Redirect(path) =>
+            case GeneratedContent(_, contentType, content) =>
+              HttpResponse(
+                body = Body.fromString(content),
+                headers = contentType.map(Headers(_)).getOrElse(Headers.empty),
+              )
+            case GeneratedFile(response, contentType, _) =>
+              HttpResponse(
+                body = Body.fromFile(response.asJioFile),
+                headers = Headers(contentType),
+              )
+            case Redirect(path, _) =>
               val rootPath = UrlPath.fromZHttpPath(request.path)
               HttpResponse.permanentRedirect(rootPath.append(path))
           }

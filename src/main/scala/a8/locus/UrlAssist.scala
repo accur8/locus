@@ -11,7 +11,10 @@ import java.util.Base64
 import scala.language.existentials
 import scala.reflect.ClassTag
 import scala.xml.Elem
-import SharedImports._
+import SharedImports.*
+import a8.locus.ziohttp.model.M
+import a8.shared.ZFileSystem
+import a8.shared.FileSystem
 
 import java.io.ByteArrayInputStream
 /**
@@ -28,10 +31,10 @@ object UrlAssist {
     status: Int,
     statusMessage: String,
     headers: Map[String,String],
-    body: Array[Byte],
+    bodyAsFile: Option[ZFileSystem.File],
   ) {
 
-    def bodyAsStream = new ByteArrayInputStream(body)
+//    def bodyAsStream = new ByteArrayInputStream(body)
 
 //    def jsonTo[A : JsonCodec]: box.Box[A] =
 //      if ( status >= 200 && status < 300 ) {
@@ -43,14 +46,17 @@ object UrlAssist {
 //        box.Failure(s"error response ${status} - ${statusMessage}")
 //      }
 
-    def asXml: Option[Elem] = {
-      if (body.length == 0)
-        None
-      else
-        Some(scala.xml.XML.loadString(bodyAsStr))
-    }
+    def asXml: zio.Task[Option[Elem]] =
+      bodyAsStrOpt
+        .map(_.map(xmlStr => scala.xml.XML.loadString(xmlStr)))
 
-    def bodyAsStr = new String(body, StandardCharsets.UTF_8)
+    def bodyAsStrOpt: zio.Task[Option[String]] =
+      bodyAsFile match {
+        case None =>
+          zsucceed(None)
+        case Some(f) =>
+          f.readAsStringOpt
+      }
 
   }
 
@@ -95,77 +101,97 @@ object UrlAssist {
     requestHeaders: Map[String,String] = Map(),
     auth: Option[BasicAuth] = None,
     followRedirects: Boolean = false,
-   ): Response =
-    execute(uri, "GET", requestHeaders, EmptyBody, auth, followRedirects)
+   ): M[Response] =
+    execute(uri, "GET", requestHeaders, EmptyBody, auth, if ( followRedirects ) 10 else 0)
 
-  def execute(
+  private def execute(
     uri: Uri,
     requestMethod: String,
     requestHeaders: Map[String,String] = Map(),
     requestBody: RequestBody = EmptyBody,
     auth: Option[BasicAuth] = None,
-    followRedirects: Boolean = false,
-  ): Response = {
+    redirectsLeft: Int = 0,
+  ): M[Response] =
+    zservice[ResolvedModel].flatMap(_.tempFile).flatMap(tempFile =>
+      zsuspend {
 
-    val url = new java.net.URL(uri.toString)
+        val url = new java.net.URL(uri.toString)
 
-    val conn = url.openConnection().asInstanceOf[HttpURLConnection]
+        val conn = url.openConnection().asInstanceOf[HttpURLConnection]
+        try {
 
-    conn.setInstanceFollowRedirects(false)
+          conn.setInstanceFollowRedirects(false)
 
-    setRequestMethod(conn, requestMethod)
+          setRequestMethod(conn, requestMethod)
 
-    auth.foreach { case BasicAuth(username, password) =>
-      val encodedBytes = Base64.getEncoder.encode((username + ":" + password).getBytes)
-      val authorization = "Basic " + new String(encodedBytes)
-      conn.setRequestProperty("Authorization", authorization)
-    }
+          auth.foreach { case BasicAuth(username, password) =>
+            val encodedBytes = Base64.getEncoder.encode((username + ":" + password).getBytes)
+            val authorization = "Basic " + new String(encodedBytes)
+            conn.setRequestProperty("Authorization", authorization)
+          }
 
-    requestHeaders.foreach( h =>
-      conn.setRequestProperty(h._1, h._2)
-    )
+          requestHeaders.foreach(h =>
+            conn.setRequestProperty(h._1, h._2)
+          )
 
-    conn.setRequestProperty("Content-Length", requestBody.content.length.toString)
+          conn.setRequestProperty("Content-Length", requestBody.content.length.toString)
 
-    requestBody.contentType.foreach ( ct =>
-      conn.setRequestProperty("Content-Type", ct)
-    )
+          requestBody.contentType.foreach(ct =>
+            conn.setRequestProperty("Content-Type", ct)
+          )
 
-    conn.setDoInput(true)
+          conn.setDoInput(true)
 
-    // If setDoOutput is set to true  on a GET, then HttpURLConnection sets the method to POST.
-    if (requestBody.content.isEmpty) {
-      conn.setDoOutput(false)
-      conn.connect()
-    } else {
-      conn.setDoOutput(true)
-      conn.connect()
-      conn.getOutputStream.write(requestBody.content)
-      conn.getOutputStream.flush()
-    }
+          // If setDoOutput is set to true  on a GET, then HttpURLConnection sets the method to POST.
+          if (requestBody.content.isEmpty) {
+            conn.setDoOutput(false)
+            conn.connect()
+          } else {
+            conn.setDoOutput(true)
+            conn.connect()
+            conn.getOutputStream.write(requestBody.content)
+            conn.getOutputStream.flush()
+          }
 
-    if (conn.getResponseCode === 302 && followRedirects) {
-      Option(conn.getHeaderField("Location"))
-        .map { location =>
-          execute(Uri.parse(location), requestMethod, requestHeaders, requestBody, None, followRedirects)
+          if (conn.getResponseCode === 302 && redirectsLeft > 0) {
+            Option(conn.getHeaderField("Location"))
+              .map { location =>
+                val redirectUri =
+                  if ( location.startsWith("/") ) {
+                    Uri.parse(uri.root.toString + location)
+                  } else if ( location.startsWith("http") ) {
+                    Uri.parse(location)
+                  } else {
+                    sys.error(s"invalid location ${location}")
+                  }
+                execute(redirectUri, requestMethod, requestHeaders, requestBody, None, redirectsLeft - 1)
+              }
+              .getOrElse(zfail(new RuntimeException(s"invalid redirect from ${uri}")))
+          } else {
+            val response =
+              if (conn.getResponseCode >= 400) {
+                Response(
+                  conn.getResponseCode,
+                  conn.getResponseMessage,
+                  conn.getHeaderFields.asScala.map(t => t._1 -> t._2.get(0)).toMap,
+                  None,
+                )
+              } else {
+                FileSystem.file(tempFile.absolutePath).write(conn.getInputStream)
+                Response(
+                  conn.getResponseCode,
+                  conn.getResponseMessage,
+                  conn.getHeaderFields.asScala.map(t => t._1 -> t._2.get(0)).toMap,
+                  Some(tempFile),
+                )
+              }
+            zsucceed(response)
+          }
+        } finally {
+          trylogo(s"swallowing error while closing url conn to ${url}")(conn.disconnect())
         }
-        .getOrError(s"invalid redirect from ${uri}")
-    } else if (conn.getResponseCode >= 400) {
-      Response(
-        conn.getResponseCode,
-        conn.getResponseMessage,
-        conn.getHeaderFields.asScala.map(t => t._1 -> t._2.get(0)).toMap,
-        new Array[Byte](0),
-      )
-    } else {
-      Response(
-        conn.getResponseCode,
-        conn.getResponseMessage,
-        conn.getHeaderFields.asScala.map(t => t._1 -> t._2.get(0)).toMap,
-        conn.getInputStream.readAllBytes(),
-      )
-    }
-  }
+      }
+    )
 
   private def setRequestMethod(httpURLConnection:HttpURLConnection, method:String): Unit = {
     try

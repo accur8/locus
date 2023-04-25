@@ -3,16 +3,20 @@ package a8.locus.ziohttp
 import a8.locus.Config.{LocusConfig, SubnetManager}
 import a8.locus.ResolvedModel
 import a8.shared.app.LoggingF
-import zio.{Chunk, Task, ZIO}
+import zio.{Chunk, Layer, Task, ZIO}
 import zio.http.{Body, Http, HttpApp, HttpError, Request, Response, Status}
-
-import a8.locus.ziohttp.model._
-import a8.locus.SharedImports._
+import a8.locus.ziohttp.model.*
+import a8.locus.SharedImports.*
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.S3Exception
+import zio.s3.S3
 
 case class Router(
   config: LocusConfig,
   resolvedModel: ResolvedModel,
   anonymousSubnetManager: SubnetManager,
+  s3: zio.s3.S3,
+  s3Client: S3Client,
 )
   extends LoggingF
 {
@@ -55,7 +59,8 @@ case class Router(
       val preFlightRequest = PreFlightRequest(rawRequest.method, Path.fromzioPath(rawRequest.path))
       val context = s"${rawRequest.method} ${rawRequest.url.encode}"
       val preparedRequest = prepareRequest(preFlightRequest)
-      val effect: ZIO[Env, Throwable, Response] =
+
+      val rawEffect: ZIO[Env, Throwable, Response] =
         for {
           // some dancing here since curl will consume the request body
           wrappedRequest <- curl(rawRequest, preparedRequest.requestMeta.curlLogRequestBody)
@@ -80,8 +85,8 @@ case class Router(
           _ <- loggerF.debug(s"completed processing ${response.status.code} -- ${context}")
         } yield response
 
-      val fullEffect: zio.ZIO[Any, Nothing, Response] =
-        effect
+      val effectWithoutErrors: ZIO[Env, Nothing, Response] =
+        rawEffect
           .either
           .flatMap {
             case Left(th) =>
@@ -92,14 +97,18 @@ case class Router(
               zsucceed(response)
           }
           .correlateWith(context)
-          .scoped
-          .provide(
-            zl_succeed(config),
-            UserService.layer,
-            zl_succeed(resolvedModel),
-            zl_succeed(anonymousSubnetManager),
-          )
-      fullEffect
+
+      effectWithoutErrors
+        .scoped
+        .provide(
+          zl_succeed(s3Client),
+          zl_succeed(s3),
+          zl_succeed(config),
+          UserService.layer,
+          zl_succeed(resolvedModel),
+          zl_succeed(anonymousSubnetManager),
+        )
+
     }
 
   def curl(request: Request, logRequestBody: Boolean): Task[(String,Request)] = {

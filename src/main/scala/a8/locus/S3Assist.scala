@@ -2,89 +2,124 @@ package a8.locus
 
 
 import a8.locus.Dsl.UrlPath
-import com.amazonaws.services.s3.AmazonS3
-import com.amazonaws.services.s3.model.{ListObjectsRequest, S3ObjectSummary}
 import a8.locus.GenerateMavenMetadata.dateTime
-import a8.locus.S3Assist.Entry.Directory
+import a8.locus.S3Assist.Entry.{Directory, S3Object}
 import a8.versions.Version
 import cats.data.Chain
-import SharedImports._
+
 import scala.annotation.tailrec
+import SharedImports.*
+import software.amazon.awssdk.services.s3.S3Client
+import zio.s3.{ListObjectOptions, S3ObjectSummary}
+import ziohttp.model.{M, *}
 
 object S3Assist {
 
 
   sealed trait Entry {
     lazy val name: String = path.last
-    lazy val parent: UrlPath = path.parent
-    val path: UrlPath
+    lazy val parent: ContentPath = path.parent
+    val path: ContentPath
   }
 
   object Entry {
 
     case class S3Object(
-      path: UrlPath,
-      s3ObjectSummary: S3ObjectSummary,
-    )(
-      implicit amazonS3: AmazonS3
+      path: ContentPath,
+      s3ObjectSummary: software.amazon.awssdk.services.s3.model.S3Object,
     ) extends Entry
 
     case class Directory(
-      path: UrlPath,
+      path: ContentPath,
       entries: Vector[Either[String,S3ObjectSummary]],
-    )(
-      implicit amazonS3: AmazonS3
     ) extends Entry
 
   }
 
   case class BucketName(value: String)
 
-  def isDirectory(bucketName: BucketName, bucketPrefix: UrlPath)(implicit client: AmazonS3): Boolean = {
-    val request = new ListObjectsRequest()
-    request.setBucketName(bucketName.value)
-    request.setPrefix(bucketPrefix.toString + "/")
-    request.setMaxKeys(1)
-    client.listObjects(request).getObjectSummaries.size() >= 1
+  def isDirectory(bucketName: BucketName, contentPath: ContentPath): M[Boolean] = {
+    val bucketPrefix = contentPath.asDirectory.fullPath
+    zio.s3.listObjects(bucketName.value, ListObjectOptions(Some(bucketPrefix), maxKeys = 1, delimiter = Some("/"), starAfter = None))
+      .map(_.objectSummaries.nonEmpty)
   }
 
-  def listDirectory(bucketName: BucketName, bucketPrefix: UrlPath)(implicit client: AmazonS3): Option[Directory] = {
+  def list2(bucketName: BucketName, dir: ContentPath) = {
+    import software.amazon.awssdk.services.s3
+    val prefix = dir.asDirectory.fullPath
+    zservice[S3Client].flatMap { s3Client =>
+      zblock {
 
-    val entryName = bucketPrefix.last
+        val request =
+          s3.model.ListObjectsV2Request
+            .builder
+            .bucket(bucketName.value)
+            .maxKeys(10 * 1024)
+            .prefix(prefix)
+            .delimiter("/")
+            .build
 
-    val prefix = bucketPrefix.withIsDirectory(isDirectory = false).toString
-
-    @tailrec
-    def impl(nextMarker: Option[String], accumulated: Vector[Either[String,S3ObjectSummary]]): Vector[Either[String,S3ObjectSummary]] = {
-
-      val request = new ListObjectsRequest()
-      request.setDelimiter("/")
-      request.setMaxKeys(10000)
-      request.setBucketName(bucketName.value)
-      request.setPrefix(prefix + "/")
-      nextMarker.foreach(request.setMarker)
-
-      val response = client.listObjects(request)
-
-      val resultsRight = response.getObjectSummaries.iterator().asScala.toVector.map(Right.apply)
-      val resultsLeft = response.getCommonPrefixes.iterator().asScala.toVector.map(p => Left(UrlPath.parse(p).last))
-
-      val results = resultsLeft ++ resultsRight
-      val marker = response.getNextMarker
-      if ( marker != null )
-        impl(Some(marker), results)
-      else
-        results
-
-    }
-
-    val allEntries = impl(None, Vector.empty)
-    if ( allEntries.nonEmpty ) {
-      Some(Entry.Directory(bucketPrefix, allEntries))
-    } else {
-      None
+        s3Client
+          .listObjectsV2Paginator(request)
+          .iterator()
+          .asScala
+          .foldLeft(Vector.empty[Either[String, s3.model.S3Object]])((vect, response) =>
+            vect ++
+              response
+                .commonPrefixes()
+                .asScala
+                .map { cp =>
+                  val p = cp.prefix()
+                  Left(
+                    p.substring(prefix.length, p.length - 1)
+                  )
+                } ++
+              response
+                .contents()
+                .asScala
+                .map(s3o =>
+                  Right(s3o)
+                )
+          )
+      }
     }
 
   }
+
+//  def listDirectory(bucketName: BucketName, dir: ContentPath): M[Option[Directory]] = {
+//    val bucketPrefix = dir.asFile.fullPath + "/"
+//    zio.s3.listObjects(bucketName.value, ListObjectOptions(Some(bucketPrefix), maxKeys = 10*1024, delimiter = Some("/"), starAfter = None))
+////    zio.s3.listObjects(bucketName.value, ListObjectOptions(Some(bucketPrefix), maxKeys = 10*1024, delimiter = Some("/"), starAfter = None))
+////      .runCollect
+//      .map { result =>
+//        if (result.objectSummaries.nonEmpty) {
+//          Some(Entry.Directory(dir, result.objectSummaries.toVector))
+//        } else {
+//          None
+//        }
+//      }
+//      .either
+//      .flatMap {
+//        case Right(o) =>
+//          zsucceed(o)
+//        case Left(e: software.amazon.awssdk.services.s3.model.S3Exception) if e.statusCode() == 404 =>
+//          zsucceed(None)
+//        case Left(e) =>
+//          zfail(e)
+//      }
+//
+//  }
+
+  def handleNotFound[A](effect: M[A]): M[Option[A]] =
+    effect
+      .either
+      .flatMap {
+        case Right(o) =>
+          zsucceed(Some(o))
+        case Left(e: software.amazon.awssdk.services.s3.model.S3Exception) if e.statusCode() == 404 =>
+          zsucceed(None)
+        case Left(e) =>
+          zfail(e)
+      }
 
 }

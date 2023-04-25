@@ -20,10 +20,8 @@ val appVersion = a8.sbt_a8.versionStamp(file("."))
 //val versionsVersion = "1.0.0-20230411_1749_master"
 val scalaLibVersion = "3.2.2"
 val versionsVersion = "1.0.0-20230420_1346_master"
-val amazonVersion = "1.12.196"
 
 scalacOptions in Global ++= Seq("-deprecation", "-unchecked", "-feature")
-
 
 resolvers in Global += "a8-repo" at Common.readRepoUrl()
 publishTo in Global := Some("a8-repo-releases" at Common.readRepoUrl())
@@ -50,7 +48,7 @@ lazy val locus =
         "dev.zio" %% "zio-http" % "3.0.0-RC1",
         "commons-net" % "commons-net" % "3.9.0",
         "io.accur8" %% "a8-versions" % versionsVersion % "compile",
-        "com.amazonaws" % "aws-java-sdk-s3" % amazonVersion % "compile",
+        "dev.zio" %% "zio-s3" % "0.4.2.4",
         "net.sourceforge.htmlcleaner" % "htmlcleaner" % "2.24",
         "jakarta.xml.bind" % "jakarta.xml.bind-api" % "2.3.2",
         "org.glassfish.jaxb" % "jaxb-runtime" % "2.3.2",

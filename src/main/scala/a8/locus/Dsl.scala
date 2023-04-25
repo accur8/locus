@@ -3,8 +3,7 @@ package a8.locus
 
 import a8.shared.json.{JsonCodec, JsonTypedCodec, ast}
 import SharedImports.*
-import a8.locus.ResolvedModel.ContentPath
-import a8.locus.ziohttp.model.Path
+import a8.locus.ziohttp.model._
 
 // TODO move this code into a shared location (model3 project) that can be shared by odin/mugatu/server and this aka for https://accur8.atlassian.net/browse/ODIN-2013
 object Dsl {
@@ -39,10 +38,10 @@ object Dsl {
 
     val empty: UrlPath = UrlPath(Iterable.empty, false)
 
-    // TODO ??? harden this to properly handle the .. character (instead of dropping it) and make sure you can't escape out of the root using lots of ../../..
     def parse(path: String): UrlPath = {
+      val pathTrim = path.trim
       val parts =
-        path
+        pathTrim
           .splitList("/")
           .foldLeft(IndexedSeq[String]()) { case (acc, p) =>
             if ( p === "." )
@@ -52,8 +51,8 @@ object Dsl {
             else
               acc :+ p
           }
-          .filterNot(p => p === "." || p === "..")
-      UrlPath(parts, path.endsWith("/"))
+          .filterNot(p => p === "." || p === "..") // extra safety check
+      UrlPath(parts, pathTrim.endsWith("/"))
     }
 
     implicit val format: JsonTypedCodec[UrlPath, ast.JsStr] =
@@ -70,6 +69,9 @@ object Dsl {
   ) {
 
     def zioPath = zio.http.Path.decode("/" + toString)
+
+    def asContentPath: ContentPath =
+      ContentPath(parts.toSeq, isDirectory)
 
     def contentPath(basePath: Path): Option[ContentPath] = {
       val basePathParts = parts.take(basePath.parts.size).toIndexedSeq
@@ -101,6 +103,9 @@ object Dsl {
     def append(suffix: String): UrlPath =
       append(UrlPath.parse(suffix))
 
+    def append(contentPath: ContentPath): UrlPath =
+      UrlPath(parts ++ contentPath.parts, contentPath.isDirectory)
+
     def append(urlPath: UrlPath): UrlPath =
       UrlPath(parts ++ urlPath.parts, urlPath.isDirectory)
 
@@ -109,6 +114,8 @@ object Dsl {
         copy(parts = parts.drop(prefixedPath.parts.size))
       else
         this
+
+    def fullPath: String = toString
 
     def isEmpty: Boolean = parts.isEmpty
 

@@ -8,6 +8,7 @@ import a8.shared.json.{EnumCodecBuilder, JsonCodec, JsonTypedCodec, UnionCodecBu
 import MxConfig.*
 import a8.locus.model.Uri
 import org.apache.commons.net.util.SubnetUtils
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import zio.prelude.Equal
 
 import java.net.{Inet4Address, Inet6Address, InetAddress, InetSocketAddress}
@@ -60,7 +61,9 @@ object Config {
   case class S3Config(
     accessKey: String,
     secretKey: String,
-  )
+  ) {
+    def asAwsCredentials = AwsBasicCredentials.create(accessKey, secretKey)
+  }
 
   sealed abstract class UserPrivilege(val ordinal: Int) extends enumeratum.EnumEntry
   object UserPrivilege extends enumeratum.Enum[UserPrivilege] {

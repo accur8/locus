@@ -4,7 +4,7 @@ package a8.locus.ziohttp
 import a8.locus.Config.{User, UserPrivilege}
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel
-import a8.locus.ResolvedModel.{ResolvedContent, ResolvedRepo}
+import a8.locus.ResolvedRepo
 import a8.locus.SharedImports.*
 import a8.locus.ziohttp.model.{FullPath, M}
 import a8.shared.app.{Logging, LoggingF}
@@ -22,6 +22,7 @@ case object ListReposHandler extends ZHttpHandler with LoggingF {
       Seq(Method.GET),
       Seq(
         FullPath(IndexedSeq(CIString("repos"))),
+        FullPath(IndexedSeq("repos","index.html").map(CiString(_))),
       ),
     )
 

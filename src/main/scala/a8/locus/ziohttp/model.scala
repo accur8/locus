@@ -6,13 +6,16 @@ import a8.locus.ResolvedModel
 import zio.{Chunk, ZIO}
 import zio.http.{Body, Header, Headers, MediaType, Method, Request, Response, Status, URL}
 import a8.locus.SharedImports.*
-import a8.shared.FileSystem
+import a8.shared.{FileSystem, ZFileSystem}
 import io.accur8.neodeploy.resolvedmodel.ResolvedRepository
+import software.amazon.awssdk.services.s3.S3Client
 import zio.http.Header.{ContentType, HeaderType}
 
 import java.io.ByteArrayInputStream
 
 object model {
+
+  val parallelism = 10
 
   type HttpStatusCode = zio.http.Status
 
@@ -114,7 +117,7 @@ object model {
 
   }
 
-  type Env = zio.Scope & ResolvedModel & UserService
+  type Env = zio.s3.S3 & zio.Scope & ResolvedModel & UserService & S3Client
 
   type M[A] = zio.ZIO[Env, Throwable,A]
 
@@ -175,12 +178,16 @@ object model {
       Response(
         body = body,
         status = status,
+        headers = headers,
       )
 
     def emptyResponse(statusCode: HttpStatusCode): HttpResponse =
       HttpResponse(
         status = statusCode,
       )
+
+    def conflict(message: String = ""): HttpResponse =
+      HttpResponse(body = Body.fromString(message), status = HttpStatusCode.Conflict)
 
     def methodNotAllowed(message: String = ""): HttpResponse =
       HttpResponse(body=Body.fromString(message), status=HttpStatusCode.MethodNotAllowed)
@@ -191,7 +198,7 @@ object model {
     def notFound(message: String = ""): HttpResponse =
       HttpResponse(body=Body.fromString(message), status=HttpStatusCode.NotFound)
 
-    def fromFile(file: FileSystem.File, contentType: ContentType=ContentTypes.empty): HttpResponse =
+    def fromFile(file: ZFileSystem.File, contentType: ContentType=ContentTypes.empty): HttpResponse =
       HttpResponse(body=Body.fromFile(file.asNioPath.toFile), headers=Headers(contentType))
 
     def fromHtml(html: String): HttpResponse =
@@ -210,5 +217,62 @@ object model {
       )
 
   }
+
+
+  object ContentPath {
+
+    def apply(parts: Seq[String], isDirectory: Boolean): ContentPath = {
+      val scrubbedParts =
+        parts
+          .filterNot { p =>
+            val scrubbed = p.trim
+            scrubbed == "." || scrubbed == ".." || scrubbed.contains("/") || scrubbed.contains("\\")
+          }
+      ContentPathImpl(scrubbedParts, isDirectory)
+    }
+
+    private case class ContentPathImpl(parts: Seq[String], isDirectory: Boolean) extends ContentPath {
+
+      def parent = copy(parts = parts.init, isDirectory = true)
+
+      def appendExtension(extension: String): ContentPath =
+        copy(parts = parts.dropRight(1) ++ Some(parts.last + extension))
+
+      def dropExtension: Option[ContentPath] =
+        parts.last.lastIndexOf(".") match {
+          case i if i > 0 =>
+            val filename = parts.last.substring(0, i)
+            copy(parts = parts.dropRight(1) ++ Some(filename))
+              .some
+          case _ =>
+            None
+        }
+
+      override def append(suffix: ContentPath): ContentPath =
+        copy(parts = parts ++ suffix.parts, suffix.isDirectory)
+
+      override def asDirectory: ContentPath =
+        copy(isDirectory = true)
+
+      override def asFile: ContentPath =
+        copy(isDirectory = false)
+    }
+
+  }
+
+  sealed trait ContentPath {
+    val parts: Seq[String]
+    val isDirectory: Boolean
+    def append(suffix: ContentPath): ContentPath
+    def dropExtension: Option[ContentPath]
+    def appendExtension(extension: String): ContentPath
+    def asDirectory: ContentPath
+    def asFile: ContentPath
+    def parent: ContentPath
+    def last = parts.last
+    def fullPath: String = parts.mkString("/") + (if ( isDirectory ) "/" else "")
+    override def toString: String = fullPath
+  }
+
 
 }
