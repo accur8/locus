@@ -76,10 +76,11 @@ object LocusMain extends BootstrappedIOApp {
         s3 <- zservice[zio.s3.S3]
         resolvedModel = ResolvedModel(locusConfig)
         router = Router(locusConfig, resolvedModel, anonymousSubnetManager((resolvedModel)), s3, s3Client)
+        _ <- loggerF.info(s"http server is listening on port ${locusConfig.port}")
         _ <-
           Server
             .serve(router.routes)
-            .provide(Server.defaultWith(_.port(locusConfig.port).withRequestStreaming(RequestStreaming.Enabled)))
+            .provide(Server.defaultWith(_.port(locusConfig.port).keepAlive(false).withRequestStreaming(RequestStreaming.Enabled)))
       } yield ()
     ).provideSomeLayer[BootstrapEnv](s3Layer)
 

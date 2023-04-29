@@ -13,6 +13,7 @@ import a8.shared.ZFileSystem.File
 import zio.stream.{ZSink, ZStream}
 import a8.locus.S3Assist.BucketName
 import a8.locus.model.DateTime
+import zio.http.Header.Authorization.Digest
 
 case class ResolvedS3Repo(
   repoConfig: Config.UrlRepo,
@@ -72,7 +73,7 @@ case class ResolvedS3Repo(
 //      )
   }
 
-  def calculateMd5(file: File): M[String] =
+  def calculateMd5(file: File): M[GenerateSha256.DigestResults] =
     GenerateSha256.Md5Validator.digest(file)
 
   override def put(contentPath: ContentPath, contentFile: File): M[PutResult] = {
@@ -86,7 +87,7 @@ case class ResolvedS3Repo(
           for {
             size <- contentFile.size
             md5 <- calculateMd5(contentFile)
-            _ <- zio.s3.putObject(bucket.value, key, size, ZStream.fromFile(contentFile.asJioFile), contentMD5 = Some(md5))
+            _ <- zio.s3.putObject(bucket.value, key, size, ZStream.fromFile(contentFile.asJioFile), contentMD5 = Some(md5.asBase64String))
           } yield PutResult.Success
         case Some(_) =>
           zsucceed(PutResult.AlreadyExists)

@@ -16,3 +16,8 @@ publish_aws_secret_key = <omitted>
 ```shell
 nix-shell --command "./deploy.sh"
 ```
+
+
+# we deploy artifacts to public maven so we can easily bootstrap infrastructure
+
+

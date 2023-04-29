@@ -12,7 +12,7 @@ import a8.shared.ZFileSystem
 import a8.shared.ZFileSystem.File
 import a8.versions.{BuildTimestamp, Version}
 import org.apache.commons.codec.digest.DigestUtils
-import zio.ZIO
+import zio.{Chunk, ZIO}
 
 import java.time.Month
 import ziohttp.model.*
@@ -21,29 +21,36 @@ object GenerateSha256 extends ContentGenerator {
 
   val extension = ".sha256"
 
+  case class DigestResults(bytes: Chunk[Byte]) {
+    def asHexString = org.apache.commons.codec.binary.Hex.encodeHexString(bytes.toArray)
+    def asBase64String = new String(java.util.Base64.getEncoder().encode(bytes.toArray))
+  }
+
   object impl {
-    def runDigest(file: ZFileSystem.File, fn: java.io.InputStream => String): M[String] =
+    def runDigest(file: ZFileSystem.File, fn: java.io.InputStream => Array[Byte]): M[DigestResults] =
       zblock {
-        FileSystem
-          .file(file.absolutePath)
-          .withInputStream(fn(_))
+        val rawBytes =
+          FileSystem
+            .file(file.absolutePath)
+            .withInputStream(fn(_))
+        DigestResults(Chunk.fromArray(rawBytes))
       }
   }
   import impl._
 
   case object Sha256Validator extends Validator(".sha256") {
-    override def digest(content: File): M[String] =
-      runDigest(content, DigestUtils.sha256Hex)
+    override def digest(content: File): M[DigestResults] =
+      runDigest(content, DigestUtils.sha256)
   }
 
   case object Md5Validator extends Validator(".md5") {
-    override def digest(content: File): M[String] =
-      runDigest(content, DigestUtils.md5Hex)
+    override def digest(content: File): M[DigestResults] =
+      runDigest(content, DigestUtils.md5)
   }
 
   case object Sha1Validator extends Validator(".sha1") {
-    override def digest(content: File): M[String] =
-      runDigest(content, DigestUtils.sha1Hex)
+    override def digest(content: File): M[DigestResults] =
+      runDigest(content, DigestUtils.sha1)
   }
 
   // we do not want / need the Sha256 validator here since repos don't do Sha256
@@ -71,7 +78,7 @@ object GenerateSha256 extends ContentGenerator {
                       GeneratedContent(
                         resolvedRepo,
                         contentType = None,
-                        content = digest,
+                        content = digest.asHexString,
                       ).some
                     )
 //                    DigestUtils.sha256Hex()
@@ -98,7 +105,7 @@ object GenerateSha256 extends ContentGenerator {
 
   abstract class Validator(extension: String) {
 
-    def digest(content: ZFileSystem.File): M[String]
+    def digest(content: ZFileSystem.File): M[DigestResults]
 
     def validate(basePath: ContentPath, contentFile: ZFileSystem.File, resolvedRepo: ResolvedRepo): M[Option[ValidationResult]] = {
       val checksumPath = basePath.appendExtension(extension)
@@ -118,7 +125,7 @@ object GenerateSha256 extends ContentGenerator {
         actualChecksum <- digest(contentFile)
       } yield {
         def scrub(s: String) = s.trim.toLowerCase
-        if (scrub(actualChecksum) === scrub(expectedChecksum)) {
+        if (scrub(actualChecksum.asHexString) === scrub(expectedChecksum)) {
           ValidationResult.Valid
         } else {
           ValidationResult.Invalid(s"checksum mismatch actual != expected -- ${actualChecksum} != ${expectedChecksum}")

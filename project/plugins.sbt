@@ -15,10 +15,10 @@
 //      
 
 addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.9")
-addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.1.2")
+//addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.1.2")
 
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.6.0")
-addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.0.0")
+//addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.6.0")
+addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.2.0")
 //addSbtPlugin("io.get-coursier" % "sbt-coursier" % "2.0.0-RC6")
 //addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.0")
 
@@ -27,13 +27,13 @@ addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.0.0")
 //libraryDependencies += "org.slf4j" % "slf4j-nop" % "1.7.21"
 //addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.9.3")
 
-addSbtPlugin("io.accur8" % "sbt-a8" % "1.2.0-20220113_1040")
+addSbtPlugin("io.accur8" % "sbt-a8" % "1.3.0-20230427_1349")
 // old plugin
 //addSbtPlugin("a8" % "sbt-a8" % "1.1.0-20210702_1452")
 
 
 // This plugin can be removed when using Scala 2.13.0 or above
-addSbtPlugin("org.lyranthe.sbt" % "partial-unification" % "1.1.2")
+//addSbtPlugin("org.lyranthe.sbt" % "partial-unification" % "1.1.2")
 
 
 
