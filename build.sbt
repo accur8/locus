@@ -54,7 +54,7 @@ lazy val locus =
         "io.accur8" %% "a8-versions" % versionsVersion % "compile" exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
 
         "dev.zio" %% "zio-s3" % "0.4.2.4"  exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
-        "net.sourceforge.htmlcleaner" % "htmlcleaner" % "2.24",
+        "net.sourceforge.htmlcleaner" % "htmlcleaner" % "2.27",
         "jakarta.xml.bind" % "jakarta.xml.bind-api" % "2.3.2",
         "org.glassfish.jaxb" % "jaxb-runtime" % "2.3.2",
 
