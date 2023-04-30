@@ -8,7 +8,7 @@ import a8.versions.Build.BuildType
 import a8.versions.RepositoryOps.RepoConfigPrefix
 import a8.versions.Upgrade.LatestArtifact
 import a8.versions.model.{RepoPrefix, ResolutionRequest}
-import a8.versions.{RepositoryOps, Version, VersionParser}
+import a8.versions.{RepositoryOps, ParsedVersion, VersionParser}
 import coursier.Resolution
 import coursier.core.{Module, Organization}
 import coursier.util.Artifact

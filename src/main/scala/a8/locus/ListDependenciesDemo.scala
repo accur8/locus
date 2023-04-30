@@ -1,7 +1,7 @@
 package a8.locus
 
 import a8.versions.Build.BuildType
-import a8.versions.{RepositoryOps, Version}
+import a8.versions.{RepositoryOps, ParsedVersion}
 import coursier.ModuleName
 import coursier.core.Organization
 
@@ -17,7 +17,7 @@ object ListDependenciesDemo {
         .default
         .resolveDependencyTree(
           coursier.core.Module(Organization("a8"), ModuleName("a8-qubes-dist_2.12"), Map()),
-          Version.parse("2.7.0-20180418_0536_master").get
+          ParsedVersion.parse("2.7.0-20180418_0536_master").get
         )
 
     val searchStr = "scala-compiler"
@@ -41,7 +41,7 @@ object ListDependenciesDemo {
 
     val scalaps = files.filter(_.getCanonicalPath.contains(searchStr))
 
-    toString
+    toString: @scala.annotation.nowarn
 
   }
 }

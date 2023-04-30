@@ -10,7 +10,7 @@ import a8.locus.ziohttp.model.{HttpResponse, HttpResponseBody}
 import a8.shared.FileSystem
 import a8.shared.ZFileSystem
 import a8.shared.ZFileSystem.File
-import a8.versions.{BuildTimestamp, Version}
+import a8.versions.{BuildTimestamp, ParsedVersion}
 import org.apache.commons.codec.digest.DigestUtils
 import zio.{Chunk, ZIO}
 

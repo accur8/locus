@@ -2,21 +2,42 @@ package a8.locus.ziohttp
 
 
 import a8.locus.SharedImports.*
+import a8.locus.ziohttp.JavaLauncherDotNixHandler.LauncherPath
 import a8.locus.ziohttp.ResolveDependencyTreeHandler.RequestHandler
 import a8.shared.CompanionGen
 import a8.shared.app.LoggingF
 import a8.versions.RepositoryOps
 import a8.versions.model.{ArtifactResponse, BranchName, ResolutionRequest}
 import a8.versions.GenerateJavaLauncherDotNix
+import a8.versions.GenerateJavaLauncherDotNix.BuildDescription
 import a8.versions.RepositoryOps.RepoConfigPrefix
 import model.*
 import zio.http.{Body, Method, Request}
 
 object JavaLauncherDotNixHandler {
 
+  case class LauncherPath(
+    path: String,
+    effect: BuildDescription=>M[HttpResponse],
+  )
+
+  val buildDescriptionLauncherPath =
+    LauncherPath(
+      "nixBuildDescription",
+      bd => HttpResponses.json(bd)
+    )
+
+  val javaLauncherInstallerDotNix =
+    LauncherPath(
+      "javaLauncherInstallerDotNix",
+      bd => HttpResponses.Ok(bd.defaultDotNixContent)
+    )
+
 }
 
-case class JavaLauncherDotNixHandler(launcherConfigOnly: Boolean)
+case class JavaLauncherDotNixHandler(
+  path: LauncherPath,
+)
   extends ZHttpHandler
   with LoggingF
 {
@@ -27,11 +48,7 @@ case class JavaLauncherDotNixHandler(launcherConfigOnly: Boolean)
       paths = Seq(FullPath("api", suffix))
     )
 
-  val suffix =
-    if ( launcherConfigOnly )
-      "javaLauncherConfigDotNix"
-    else
-      "javaLauncherInstallerDotNix"
+  val suffix = path.path
 
   def respond(httpRequest: Request): M[HttpResponse] = {
     for {
@@ -48,13 +65,12 @@ case class JavaLauncherDotNixHandler(launcherConfigOnly: Boolean)
   ) {
 
     def run: M[HttpResponse] = {
-      GenerateJavaLauncherDotNix(parms, launcherConfigOnly)
-        .javaLauncherContentT
-        .map(bodyStr =>
-          HttpResponse(
-            body = Body.fromString(bodyStr)
-          )
-        )
+      GenerateJavaLauncherDotNix(parms)
+        .buildDescriptionT
+        .flatMap { buildDescription =>
+          path
+            .effect(buildDescription)
+        }
 
     }
 

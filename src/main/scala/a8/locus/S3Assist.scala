@@ -4,7 +4,7 @@ package a8.locus
 import a8.locus.Dsl.UrlPath
 import a8.locus.GenerateMavenMetadata.dateTime
 import a8.locus.S3Assist.Entry.{Directory, S3Object}
-import a8.versions.Version
+import a8.versions.ParsedVersion
 import cats.data.Chain
 
 import scala.annotation.tailrec

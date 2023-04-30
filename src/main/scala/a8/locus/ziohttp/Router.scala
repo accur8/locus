@@ -34,8 +34,8 @@ case class Router(
       ListReposHandler,
       RootHandler,
       ResolveDependencyTreeHandler,
-      JavaLauncherDotNixHandler(true),
-      JavaLauncherDotNixHandler(false),
+      JavaLauncherDotNixHandler(JavaLauncherDotNixHandler.buildDescriptionLauncherPath),
+      JavaLauncherDotNixHandler(JavaLauncherDotNixHandler.javaLauncherInstallerDotNix),
     )
 
   val handlers = repoHandlers ++ baseHandlers

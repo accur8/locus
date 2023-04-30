@@ -6,7 +6,7 @@ import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry, RepoContent}
 import a8.locus.S3Assist.Entry
 import a8.locus.model.DateTime
 import a8.shared.jdbcf.querydsl.QueryDsl.valueToConstant
-import a8.versions.{BuildTimestamp, Version, VersionParser}
+import a8.versions.{BuildTimestamp, ParsedVersion, VersionParser}
 import cats.data.Chain
 import SharedImports.*
 import a8.locus.ziohttp.model.*
@@ -40,7 +40,7 @@ object GenerateMavenMetadata extends ContentGenerator {
             .filter(_.isDirectory)
             .flatMap { entry =>
               val name = entry.name
-              Version
+              ParsedVersion
                 .parse(name)
                 .toOption
                 .map { v =>

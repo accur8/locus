@@ -188,7 +188,7 @@ object UrlAssist {
             zsucceed(response)
           }
         } finally {
-          trylogo(s"swallowing error while closing url conn to ${url}")(conn.disconnect())
+          trylogo(s"swallowing error while closing url conn to ${url}")(conn.disconnect()): @scala.annotation.nowarn
         }
       }
     )

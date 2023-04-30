@@ -9,7 +9,7 @@ class UrlPathTest extends AnyFunSpec {
 
     def test(input: String, expected: Dsl.UrlPath): Unit = {
       val actual = Dsl.UrlPath.parse(input)
-      assert(expected === actual)
+      assert(expected === actual): @scala.annotation.nowarn
     }
 
     test(
@@ -38,7 +38,7 @@ class UrlPathTest extends AnyFunSpec {
 
     def test(input: String, expected: String): Unit = {
       val actual = Dsl.UrlPath.parse(input).toString
-      assert(actual === expected)
+      assert(actual === expected): @scala.annotation.nowarn
     }
 
     test(
