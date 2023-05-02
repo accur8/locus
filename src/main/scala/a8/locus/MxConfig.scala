@@ -339,6 +339,7 @@ object MxConfig {
           .addField(_.users)
           .addField(_.noCacheFiles)
           .addField(_.port)
+          .addField(_.keepAlive)
           .addField(_.versionsVersion)
           .addField(_.realm)
       )
@@ -350,7 +351,7 @@ object MxConfig {
     
     
     lazy val generator: Generator[LocusConfig,parameters.type] =  {
-      val constructors = Constructors[LocusConfig](11, unsafe.iterRawConstruct)
+      val constructors = Constructors[LocusConfig](12, unsafe.iterRawConstruct)
       Generator(constructors, parameters)
     }
     
@@ -364,8 +365,9 @@ object MxConfig {
       lazy val users: CaseClassParm[LocusConfig,Iterable[User]] = CaseClassParm[LocusConfig,Iterable[User]]("users", _.users, (d,v) => d.copy(users = v), None, 6)
       lazy val noCacheFiles: CaseClassParm[LocusConfig,Iterable[CiString]] = CaseClassParm[LocusConfig,Iterable[CiString]]("noCacheFiles", _.noCacheFiles, (d,v) => d.copy(noCacheFiles = v), None, 7)
       lazy val port: CaseClassParm[LocusConfig,Int] = CaseClassParm[LocusConfig,Int]("port", _.port, (d,v) => d.copy(port = v), None, 8)
-      lazy val versionsVersion: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("versionsVersion", _.versionsVersion, (d,v) => d.copy(versionsVersion = v), None, 9)
-      lazy val realm: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("realm", _.realm, (d,v) => d.copy(realm = v), Some(()=> "Accur8 Repo"), 10)
+      lazy val keepAlive: CaseClassParm[LocusConfig,Boolean] = CaseClassParm[LocusConfig,Boolean]("keepAlive", _.keepAlive, (d,v) => d.copy(keepAlive = v), Some(()=> false), 9)
+      lazy val versionsVersion: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("versionsVersion", _.versionsVersion, (d,v) => d.copy(versionsVersion = v), None, 10)
+      lazy val realm: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("realm", _.realm, (d,v) => d.copy(realm = v), Some(()=> "Accur8 Repo"), 11)
     }
     
     
@@ -382,8 +384,9 @@ object MxConfig {
           users = values(6).asInstanceOf[Iterable[User]],
           noCacheFiles = values(7).asInstanceOf[Iterable[CiString]],
           port = values(8).asInstanceOf[Int],
-          versionsVersion = values(9).asInstanceOf[String],
-          realm = values(10).asInstanceOf[String],
+          keepAlive = values(9).asInstanceOf[Boolean],
+          versionsVersion = values(10).asInstanceOf[String],
+          realm = values(11).asInstanceOf[String],
         )
       }
       def iterRawConstruct(values: Iterator[Any]): LocusConfig = {
@@ -398,6 +401,7 @@ object MxConfig {
             users = values.next().asInstanceOf[Iterable[User]],
             noCacheFiles = values.next().asInstanceOf[Iterable[CiString]],
             port = values.next().asInstanceOf[Int],
+            keepAlive = values.next().asInstanceOf[Boolean],
             versionsVersion = values.next().asInstanceOf[String],
             realm = values.next().asInstanceOf[String],
           )
@@ -405,8 +409,8 @@ object MxConfig {
            sys.error("")
         value
       }
-      def typedConstruct(protocol: String, proxyServerAddresses: Iterable[String], anonymousSubnets: Iterable[String], dataDirectory: String, s3: Option[S3Config], repos: Iterable[Repo], users: Iterable[User], noCacheFiles: Iterable[CiString], port: Int, versionsVersion: String, realm: String): LocusConfig =
-        LocusConfig(protocol, proxyServerAddresses, anonymousSubnets, dataDirectory, s3, repos, users, noCacheFiles, port, versionsVersion, realm)
+      def typedConstruct(protocol: String, proxyServerAddresses: Iterable[String], anonymousSubnets: Iterable[String], dataDirectory: String, s3: Option[S3Config], repos: Iterable[Repo], users: Iterable[User], noCacheFiles: Iterable[CiString], port: Int, keepAlive: Boolean, versionsVersion: String, realm: String): LocusConfig =
+        LocusConfig(protocol, proxyServerAddresses, anonymousSubnets, dataDirectory, s3, repos, users, noCacheFiles, port, keepAlive, versionsVersion, realm)
     
     }
     

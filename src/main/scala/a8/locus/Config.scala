@@ -177,6 +177,7 @@ object Config {
     users: Iterable[User],
     noCacheFiles: Iterable[CiString],
     port: Int,
+    keepAlive: Boolean = false,
     versionsVersion: String,
     realm: String = "Accur8 Repo",
   ) {

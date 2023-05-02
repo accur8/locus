@@ -16,7 +16,7 @@ object HttpResponses {
     ZIO.succeed(
       Response(
         status = status,
-        headers = textPlainContentTypeAsHeaders,
+        headers = headers,
         body = Body.fromString(body),
       )
     )

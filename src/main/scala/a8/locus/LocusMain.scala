@@ -7,6 +7,7 @@ import a8.locus.model.*
 import a8.locus.ziohttp.Router
 import a8.locus.{ResolvedModel, ziohttp}
 import a8.shared.ConfigMojo
+import a8.shared.app.BootstrapConfig.UnifiedLogLevel
 import a8.shared.app.BootstrappedIOApp.BootstrapEnv
 import a8.shared.app.{BootstrappedIOApp, LoggingF}
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
@@ -26,6 +27,7 @@ object LocusMain extends BootstrappedIOApp {
 
   type Env = Any
 
+  override def defaultLogLevel = UnifiedLogLevel(wvlet.log.LogLevel.TRACE)
 
   override def initialLogLevels: Iterable[(String, LogLevel)] =
     super.initialLogLevels ++
@@ -80,7 +82,15 @@ object LocusMain extends BootstrappedIOApp {
         _ <-
           Server
             .serve(router.routes)
-            .provide(Server.defaultWith(_.port(locusConfig.port).keepAlive(false).withRequestStreaming(RequestStreaming.Enabled)))
+            .provide(
+              Server
+                .defaultWith(config =>
+                  config
+                    .port(locusConfig.port)
+                    .keepAlive(locusConfig.keepAlive)
+                    .withRequestStreaming(RequestStreaming.Enabled)
+                )
+            )
       } yield ()
     ).provideSomeLayer[BootstrapEnv](s3Layer)
 
