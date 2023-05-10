@@ -2,7 +2,7 @@ package a8.locus
 
 
 import a8.locus.Dsl.UrlPath
-import a8.locus.ResolvedModel.{ContentGenerator, RepoContent}
+import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry, RepoContent}
 import a8.locus.ResolvedModel.RepoContent.{CacheFile, GeneratedContent, TempFile}
 import a8.locus.SharedImports.*
 import a8.locus.model.DateTime
@@ -57,7 +57,7 @@ object GenerateSha256 extends ContentGenerator {
   val validators = Vector(Md5Validator, Sha1Validator)
 
   override def canGenerateFor(contentPath: ContentPath): Boolean =
-    contentPath.parts.last.endsWith(extension)
+    contentPath.parts.lastOption.exists(_.endsWith(extension))
 
   override def generate(sha256Path: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
     val effectOpt: Option[ZIO[Env, Throwable, Option[RepoContent]]] =
@@ -145,5 +145,10 @@ object GenerateSha256 extends ContentGenerator {
         case _ =>
           None
       }
+
+  override def extraEntries(entries: Iterable[DirectoryEntry]): Iterable[DirectoryEntry] =
+    entries
+      .filter(_.name.toLowerCase.endsWith(".jar"))
+      .map(e => e.copy(name = e.name + ".sha256", size = Some(64), generated = true, directUrl = None))
 
 }

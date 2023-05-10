@@ -53,11 +53,11 @@ body {
      """.trim
 
 
-    parse(html, null).foreach(println)
+    parse(a8.locus.model.Uri.parse("https://repo1.maven.org/maven2/com/twitter/common/collections/0.0.111/"), html, null).foreach(println)
 
   }
 
-  def parse(html: String, rr: ResolvedRepo, parseError: (String, Boolean, List[String]) => Unit = (_,_, _) => ()): Vector[DirectoryEntry] = {
+  def parse(baseUri: a8.locus.model.Uri, html: String, rr: ResolvedRepo, parseError: (String, Boolean, List[String]) => Unit = (_,_, _) => ()): Vector[DirectoryEntry] = {
     val cleaner = new HtmlCleaner
     val rootNode = cleaner.clean(new StringReader(html))
     rootNode.getElementsByName("a", true).headOption.toVector.flatMap { headElem =>
@@ -78,11 +78,14 @@ body {
         case ("..", true, List()) =>
           None
         case (name, isDirectory, List(date, time, "-")) =>
-          Some(DirectoryEntry(name, isDirectory, rr, Some(DateTime.uberParse(date + " " + time))))
+          val uri = baseUri / name
+          Some(DirectoryEntry(name, isDirectory, rr, Some(DateTime.uberParse(date + " " + time)), directUrl = Some(uri)))
         case (name, isDirectory, List("-", "-")) =>
-          Some(DirectoryEntry(name, isDirectory, rr, None))
+          val uri = baseUri / name
+          Some(DirectoryEntry(name, isDirectory, rr, None, directUrl = Some(uri)))
         case (name, isDirectory, List(date, time, size)) =>
-          Some(DirectoryEntry(name, isDirectory, rr, Some(DateTime.uberParse(date + " " + time)), Some(size.toLong)))
+          val uri = baseUri / name
+          Some(DirectoryEntry(name, isDirectory, rr, Some(DateTime.uberParse(date + " " + time)), Some(size.toLong), directUrl = Some(uri)))
         case t =>
           parseError(t._1, t._2, t._3)
           None

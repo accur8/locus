@@ -29,7 +29,7 @@ case class ResolvedHttpRepo(
       (response.status === 200).toOption(
         response
           .bodyAsStrOpt
-          .map(_.map(ReadMavenIndexDotHtml.parse(_, this)))
+          .map(_.map(b => ReadMavenIndexDotHtml.parse(targetUrl, b, this)))
       ).getOrElse(zsucceed(None))
     }
   }

@@ -84,5 +84,7 @@ object GenerateMavenMetadata extends ContentGenerator {
     }
   }
 
+  override def extraEntries(entries: Iterable[DirectoryEntry]): Iterable[DirectoryEntry] =
+    Iterable.empty
 
 }

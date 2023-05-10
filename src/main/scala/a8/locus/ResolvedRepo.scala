@@ -108,7 +108,7 @@ trait ResolvedRepo { self: LoggingF =>
     if ( resolvedModel.isCachable(contentPath) ) {
       val cacheFile0 = cacheFile(contentPath)
       cacheFile0
-        .exists
+        .existsAsFile
         .map(_.toOption(CacheFile(cacheFile0, this)))
         .traceDebug(s"${name}.cachedContent(${contentPath})")
     } else {

@@ -19,15 +19,15 @@ object GenerateIndexDotHtml extends ContentGenerator {
         contentPath
       else
         contentPath.parent
+
+
     // really bad implementation of index.html
     resolvedRepo
       .entries(dir)
-      .map { entriesOpt =>
-        val entries =
-          entriesOpt
-            .toVector
-            .flatten
-            .sortBy(_.name.toLowerCase)
+      .map { rawEntriesOpt =>
+        val rawEntries = rawEntriesOpt.toVector.flatten
+        val extraEntries = resolvedRepo.contentGenerators.flatMap(_.extraEntries(rawEntries))
+        val entries = (rawEntries ++ extraEntries).sortBy(_.name.toLowerCase())
         RepoContent.generateHtml(
           resolvedRepo,
               s"""
@@ -35,14 +35,26 @@ object GenerateIndexDotHtml extends ContentGenerator {
   <body>
     <ul>
       <li><a href="../index.html">..</a></li>
-${entries.map(e => s"<li>${link(e)} -- ${e.resolvedRepo.name}</li>").mkString("\n")}
+${entries.map(e => s"<li>${link(e)} -- ${suffix(e)}</li>").mkString("\n")}
     </ul>
   </body>
 </html>
               """.trim,
         ).some
-       }
+      }
   }
+
+  def suffix(e: DirectoryEntry): String =
+    if (e.generated)
+      "generated"
+    else {
+      e.directUrl match {
+        case Some(directUrl) =>
+          s"""<a href="${directUrl}">${e.resolvedRepo.name}</a> """
+        case None =>
+          e.resolvedRepo.name.toString
+      }
+    }
 
   def link(e: DirectoryEntry): String =
     if ( e.isDirectory ) {
@@ -54,5 +66,8 @@ ${entries.map(e => s"<li>${link(e)} -- ${e.resolvedRepo.name}</li>").mkString("\
       )
       s"<a href='${e.name}'>${e.name}</a>${parts.mkString(" -- ")}"
     }
+
+  override def extraEntries(entries: Iterable[DirectoryEntry]): Iterable[DirectoryEntry] =
+    Iterable.empty
 
 }

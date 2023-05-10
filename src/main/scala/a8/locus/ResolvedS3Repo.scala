@@ -47,6 +47,7 @@ case class ResolvedS3Repo(
 
 
   override def entries0(contentPath: ContentPath): M[Option[Vector[DirectoryEntry]]] = {
+    val baseUrl = repoConfig.url / contentPath
     val key = keyPrefix.append(contentPath).asFile
     S3Assist
       .list2(bucket, key)
@@ -56,7 +57,8 @@ case class ResolvedS3Repo(
             DirectoryEntry(dirName, true, this)
           case Right(s3o) =>
             val path = UrlPath.parse(s3o.key)
-            DirectoryEntry(path.last, false, this, Some(DateTime(s3o.lastModified.getEpochSecond * 1000)), Some(s3o.size))
+            val url = baseUrl / path.last
+            DirectoryEntry(path.last, false, this, Some(DateTime(s3o.lastModified.getEpochSecond * 1000)), Some(s3o.size), directUrl = Some(url))
         }
       }
       .either

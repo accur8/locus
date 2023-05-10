@@ -50,9 +50,9 @@ case class ResolvedLocalRepo(
               Some(entries.toVector.map {
                 case f: File =>
                   val javaIoFile = f.asJioFile
-                  DirectoryEntry(f.name, false, this, Some(DateTime(javaIoFile.lastModified())), Some(javaIoFile.length()))
+                  DirectoryEntry(f.name, false, this, Some(DateTime(javaIoFile.lastModified())), Some(javaIoFile.length()), false)
                 case d: Directory =>
-                  DirectoryEntry(d.name, true, this)
+                  DirectoryEntry(d.name, true, this, generated = false)
               })
             )
         )

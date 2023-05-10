@@ -34,11 +34,14 @@ object ResolvedModel extends LoggingF {
     resolvedRepo: ResolvedRepo,
     lastModified: Option[DateTime] = None,
     size: Option[Long] = None,
+    generated: Boolean = false,
+    directUrl: Option[a8.locus.model.Uri] = None,
   )
 
   trait ContentGenerator {
     def canGenerateFor(contentPath: ContentPath): Boolean
     def generate(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]]
+    def extraEntries(entries: Iterable[DirectoryEntry]): Iterable[DirectoryEntry]
   }
 
   lazy val contentGenerators: Chain[ContentGenerator] =
@@ -49,7 +52,9 @@ object ResolvedModel extends LoggingF {
   }
   object RepoContent {
     case class TempFile(file: ZFileSystem.File, repo: ResolvedRepo) extends RepoContent
-    case class CacheFile(file: ZFileSystem.File, repo: ResolvedRepo) extends RepoContent
+    case class CacheFile(file: ZFileSystem.File, repo: ResolvedRepo) extends RepoContent {
+      val x = this.toString
+    }
     case class Redirect(path: UrlPath, repo: ResolvedRepo) extends RepoContent
     case class GeneratedFile(response: ZFileSystem.File, contentType: Option[ContentType], repo: ResolvedRepo) extends RepoContent
     case class GeneratedContent(repo: ResolvedRepo, contentType: Option[ContentType], content: String) extends RepoContent {
