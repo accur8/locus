@@ -30,7 +30,7 @@ object GenerateMavenMetadata extends ContentGenerator {
     contentPath.last =:= "maven-metadata.xml"
 
 
-  override def generate(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
+  override def generate(context: String, contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
 
     resolvedRepo.entries(contentPath.parent).map { entriesOpt =>
       entriesOpt.map { entries =>

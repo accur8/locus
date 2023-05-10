@@ -59,7 +59,7 @@ object GenerateSha256 extends ContentGenerator {
   override def canGenerateFor(contentPath: ContentPath): Boolean =
     contentPath.parts.lastOption.exists(_.endsWith(extension))
 
-  override def generate(sha256Path: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
+  override def generate(context: String, sha256Path: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
     val effectOpt: Option[ZIO[Env, Throwable, Option[RepoContent]]] =
       sha256Path.dropExtension.map { basePath =>
         resolveContentAsFile(basePath, resolvedRepo).flatMap {

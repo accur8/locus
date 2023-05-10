@@ -49,7 +49,7 @@ trait ResolvedRepo { self: LoggingF =>
   final def resolveGeneratedContent(path: ContentPath): M[Option[RepoContent]] =
     contentGenerators
       .find(_.canGenerateFor(path))
-      .map(_.generate(path, this))
+      .map(_.generate(s"/repos/${name.toString}",path, this))
       .getOrElse(zsucceed(None))
 
   def resolveContent(path: ContentPath): M[Option[RepoContent]] = {

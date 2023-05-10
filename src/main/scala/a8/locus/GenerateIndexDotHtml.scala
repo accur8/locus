@@ -5,20 +5,75 @@ import a8.locus.Dsl.UrlPath
 import a8.locus.S3Assist.BucketName
 import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry, RepoContent}
 import SharedImports.*
-import a8.locus.ResolvedModel.RepoContent.GeneratedContent
+import a8.locus.ResolvedModel.RepoContent.{GeneratedContent, generateHtml}
 import ziohttp.model.*
 
 object GenerateIndexDotHtml extends ContentGenerator {
 
+  case class Column(
+    name: String,
+    valueFn: DirectoryEntry => Option[String],
+    alignRight: Boolean = false,
+  ) {
+    val align = if ( alignRight ) """ align="right"""" else ""
+    def cell(e: DirectoryEntry): String =
+      s"<td${align}>${valueFn(e).getOrElse("")}</td>"
+  }
+
+  val Name =
+    Column(
+      "Name",
+      e => name(e).some,
+    )
+
+  val LastModified =
+    Column(
+      "Last Modified",
+      _.lastModified.map(_.toString),
+    )
+
+  val Size =
+    Column(
+      "Size",
+      _.size.map(s => s"${java.text.NumberFormat.getIntegerInstance.format(s)} bytes"),
+      alignRight = true,
+    )
+
+  val Repo =
+    Column(
+      "Repo",
+      e => suffix(e).some,
+    )
+
+  val Columns =
+    Vector(
+      Name,
+      LastModified,
+      Size,
+      Repo,
+    )
+
   override def canGenerateFor(contentPath: ContentPath): Boolean =
     contentPath.last =:= "index.html" || contentPath.isDirectory
 
-  override def generate(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
+  override def generate(context: String, contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
     val dir =
       if ( contentPath.isDirectory )
         contentPath
       else
         contentPath.parent
+
+    val breadCrumbs =
+      dir
+        .parts
+        .inits
+        .toVector
+        .reverse
+        .filter(_.nonEmpty)
+        .map { parts =>
+          s"""<a href="${context}/${parts.mkString("/")}/index.html">${parts.last}</a>"""
+        }
+        .mkString("&nbsp;/&nbsp;")
 
 
     // really bad implementation of index.html
@@ -27,16 +82,39 @@ object GenerateIndexDotHtml extends ContentGenerator {
       .map { rawEntriesOpt =>
         val rawEntries = rawEntriesOpt.toVector.flatten
         val extraEntries = resolvedRepo.contentGenerators.flatMap(_.extraEntries(rawEntries))
-        val entries = (rawEntries ++ extraEntries).sortBy(_.name.toLowerCase())
+        val entries = (rawEntries ++ extraEntries).sortBy(e => !e.isDirectory -> e.name.toLowerCase())
         RepoContent.generateHtml(
           resolvedRepo,
               s"""
 <html>
+  <head>
+    <style>
+      table, th, td {
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+      th, td {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+    </style>
+  </head>
   <body>
-    <ul>
-      <li><a href="../index.html">..</a></li>
-${entries.map(e => s"<li>${link(e)} -- ${suffix(e)}</li>").mkString("\n")}
-    </ul>
+    <br/>
+    &nbsp;&nbsp;&nbsp;${breadCrumbs}
+    <br/>
+    <br/>
+    <table>
+      <tr>
+${Columns.map(c => s"<th>${c.name}</th>").mkString("\n")}
+      </tr>
+${
+  entries
+    .map(e => Columns.map(_.cell(e)).mkString)
+    .map(s => s"<tr>${s}</tr>")
+    .mkString("\n")
+}
+    </table>
   </body>
 </html>
               """.trim,
@@ -56,15 +134,11 @@ ${entries.map(e => s"<li>${link(e)} -- ${suffix(e)}</li>").mkString("\n")}
       }
     }
 
-  def link(e: DirectoryEntry): String =
-    if ( e.isDirectory ) {
-      s"<a href='${e.name}/index.html'>${e.name}</a>"
+  def name(e: DirectoryEntry): String =
+    if (e.isDirectory) {
+      s"<a href='${e.name}/index.html'>${e.name}/</a>"
     } else {
-      val parts = (
-        e.lastModified.map(m => s" -- ${m}")
-        ++ e.size.map(s => s" -- ${java.text.NumberFormat.getIntegerInstance.format(s)} bytes")
-      )
-      s"<a href='${e.name}'>${e.name}</a>${parts.mkString(" -- ")}"
+      s"<a href='${e.name}'>${e.name}</a>"
     }
 
   override def extraEntries(entries: Iterable[DirectoryEntry]): Iterable[DirectoryEntry] =

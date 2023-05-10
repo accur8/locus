@@ -40,7 +40,7 @@ object ResolvedModel extends LoggingF {
 
   trait ContentGenerator {
     def canGenerateFor(contentPath: ContentPath): Boolean
-    def generate(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]]
+    def generate(context: String, contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]]
     def extraEntries(entries: Iterable[DirectoryEntry]): Iterable[DirectoryEntry]
   }
 
@@ -52,9 +52,7 @@ object ResolvedModel extends LoggingF {
   }
   object RepoContent {
     case class TempFile(file: ZFileSystem.File, repo: ResolvedRepo) extends RepoContent
-    case class CacheFile(file: ZFileSystem.File, repo: ResolvedRepo) extends RepoContent {
-      val x = this.toString
-    }
+    case class CacheFile(file: ZFileSystem.File, repo: ResolvedRepo) extends RepoContent
     case class Redirect(path: UrlPath, repo: ResolvedRepo) extends RepoContent
     case class GeneratedFile(response: ZFileSystem.File, contentType: Option[ContentType], repo: ResolvedRepo) extends RepoContent
     case class GeneratedContent(repo: ResolvedRepo, contentType: Option[ContentType], content: String) extends RepoContent {
