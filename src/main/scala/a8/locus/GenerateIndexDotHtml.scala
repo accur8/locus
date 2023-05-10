@@ -101,7 +101,7 @@ object GenerateIndexDotHtml extends ContentGenerator {
   </head>
   <body>
     <br/>
-    &nbsp;&nbsp;&nbsp;${breadCrumbs}
+    &nbsp;&nbsp;&nbsp;<a href="/repos/">repos</a>&nbsp;/${breadCrumbs}
     <br/>
     <br/>
     <table>
