@@ -101,7 +101,12 @@ object GenerateIndexDotHtml extends ContentGenerator {
   </head>
   <body>
     <br/>
-    &nbsp;&nbsp;&nbsp;<a href="/repos/">repos</a>&nbsp;/${breadCrumbs}
+      &nbsp;&nbsp;
+      &nbsp;<a href="/repos/">repos</a>
+      &nbsp;/&nbsp;
+      <a href="/repos/${resolvedRepo.name}/index.html">${resolvedRepo.name}</a>
+      &nbsp;&nbsp;--&nbsp;&nbsp;
+      ${breadCrumbs}
     <br/>
     <br/>
     <table>
