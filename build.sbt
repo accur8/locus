@@ -25,8 +25,8 @@ Global / resolvers += ("a8-repo" at Common.readRepoUrl()).withAllowInsecureProto
 Global / publishTo := Some(("a8-repo-releases" at Common.readRepoUrl()).withAllowInsecureProtocol(true))
 Global / credentials += Common.readRepoCredentials()
 
-//Global / publishTo := sonatypePublishToBundle.value
-//Global / credentials += Credentials(Path.userHome / ".sbt" / "sonatype.credentials")
+// Global / publishTo := sonatypePublishToBundle.value
+// Global / credentials += Credentials(Path.userHome / ".sbt" / "sonatype.credentials")
 
 Global / scalaVersion := scalaLibVersion
 
@@ -41,7 +41,7 @@ Global / serverConnectionType := ConnectionType.Local
 
 lazy val locus =
   Common
-    .jvmProject("a8-locus", file("../locus"), "locus")
+    .jvmProject("a8-locus", file("."), "locus")
     .settings(
       libraryDependencies ++= Seq(
 
