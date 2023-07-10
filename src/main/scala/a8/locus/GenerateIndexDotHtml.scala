@@ -81,7 +81,7 @@ object GenerateIndexDotHtml extends ContentGenerator {
       .entries(dir)
       .map { rawEntriesOpt =>
         val rawEntries = rawEntriesOpt.toVector.flatten
-        val extraEntries = resolvedRepo.contentGenerators.flatMap(_.extraEntries(rawEntries))
+        val extraEntries = resolvedRepo.contentGenerators.flatMap(_.extraEntries(rawEntries, resolvedRepo))
         val entries = (rawEntries ++ extraEntries).sortBy(e => !e.isDirectory -> e.name.toLowerCase())
         RepoContent.generateHtml(
           resolvedRepo,
@@ -146,7 +146,7 @@ ${
       s"<a href='${e.name}'>${e.name}</a>"
     }
 
-  override def extraEntries(entries: Iterable[DirectoryEntry]): Iterable[DirectoryEntry] =
+  override def extraEntries(entries: Iterable[DirectoryEntry], resolvedRepo: ResolvedRepo): Iterable[DirectoryEntry] =
     Iterable.empty
 
 }

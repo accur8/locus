@@ -28,6 +28,7 @@ object Config {
 
   sealed trait Repo {
     def name: CiString
+    def generatedChecksums: Vector[String]
   }
 
   object MultiplexerRepo extends MxMultiplexerRepo
@@ -37,6 +38,7 @@ object Config {
     name: CiString,
     repos: Iterable[CiString],
     repoForWrites: Option[CiString],
+    generatedChecksums: Vector[String] = Vector("sha256"),
   ) extends Repo
 
   object UrlRepo extends MxUrlRepo
@@ -45,6 +47,7 @@ object Config {
   case class UrlRepo(
     name: CiString,
     url: Uri,
+    generatedChecksums: Vector[String] = Vector("sha256"),
   ) extends Repo
 
   object LocalRepo extends MxLocalRepo
@@ -53,6 +56,7 @@ object Config {
   case class LocalRepo(
     name: CiString,
     directory: String,
+    generatedChecksums: Vector[String] = Vector("sha256"),
   ) extends Repo
 
   object S3Config extends MxS3Config
@@ -171,7 +175,7 @@ object Config {
     protocol: String = "https",
     proxyServerAddresses: Iterable[String] = Iterable("127.0.0.0/8"),
     anonymousSubnets: Iterable[String] = Iterable.empty,
-    dataDirectory: String,
+    dataDirectory: String = "data",
     s3: Option[S3Config],
     repos: Iterable[Repo],
     users: Iterable[User],

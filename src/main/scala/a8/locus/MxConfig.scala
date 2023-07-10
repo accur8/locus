@@ -30,6 +30,7 @@ object MxConfig {
           .addField(_.name)
           .addField(_.repos)
           .addField(_.repoForWrites)
+          .addField(_.generatedChecksums)
       )
       .build
     
@@ -39,7 +40,7 @@ object MxConfig {
     
     
     lazy val generator: Generator[MultiplexerRepo,parameters.type] =  {
-      val constructors = Constructors[MultiplexerRepo](3, unsafe.iterRawConstruct)
+      val constructors = Constructors[MultiplexerRepo](4, unsafe.iterRawConstruct)
       Generator(constructors, parameters)
     }
     
@@ -47,6 +48,7 @@ object MxConfig {
       lazy val name: CaseClassParm[MultiplexerRepo,CiString] = CaseClassParm[MultiplexerRepo,CiString]("name", _.name, (d,v) => d.copy(name = v), None, 0)
       lazy val repos: CaseClassParm[MultiplexerRepo,Iterable[CiString]] = CaseClassParm[MultiplexerRepo,Iterable[CiString]]("repos", _.repos, (d,v) => d.copy(repos = v), None, 1)
       lazy val repoForWrites: CaseClassParm[MultiplexerRepo,Option[CiString]] = CaseClassParm[MultiplexerRepo,Option[CiString]]("repoForWrites", _.repoForWrites, (d,v) => d.copy(repoForWrites = v), None, 2)
+      lazy val generatedChecksums: CaseClassParm[MultiplexerRepo,Vector[String]] = CaseClassParm[MultiplexerRepo,Vector[String]]("generatedChecksums", _.generatedChecksums, (d,v) => d.copy(generatedChecksums = v), Some(()=> Vector("sha256")), 3)
     }
     
     
@@ -57,6 +59,7 @@ object MxConfig {
           name = values(0).asInstanceOf[CiString],
           repos = values(1).asInstanceOf[Iterable[CiString]],
           repoForWrites = values(2).asInstanceOf[Option[CiString]],
+          generatedChecksums = values(3).asInstanceOf[Vector[String]],
         )
       }
       def iterRawConstruct(values: Iterator[Any]): MultiplexerRepo = {
@@ -65,13 +68,14 @@ object MxConfig {
             name = values.next().asInstanceOf[CiString],
             repos = values.next().asInstanceOf[Iterable[CiString]],
             repoForWrites = values.next().asInstanceOf[Option[CiString]],
+            generatedChecksums = values.next().asInstanceOf[Vector[String]],
           )
         if ( values.hasNext )
            sys.error("")
         value
       }
-      def typedConstruct(name: CiString, repos: Iterable[CiString], repoForWrites: Option[CiString]): MultiplexerRepo =
-        MultiplexerRepo(name, repos, repoForWrites)
+      def typedConstruct(name: CiString, repos: Iterable[CiString], repoForWrites: Option[CiString], generatedChecksums: Vector[String]): MultiplexerRepo =
+        MultiplexerRepo(name, repos, repoForWrites, generatedChecksums)
     
     }
     
@@ -92,6 +96,7 @@ object MxConfig {
         a8.shared.json.JsonObjectCodecBuilder(generator)
           .addField(_.name)
           .addField(_.url)
+          .addField(_.generatedChecksums)
       )
       .build
     
@@ -101,13 +106,14 @@ object MxConfig {
     
     
     lazy val generator: Generator[UrlRepo,parameters.type] =  {
-      val constructors = Constructors[UrlRepo](2, unsafe.iterRawConstruct)
+      val constructors = Constructors[UrlRepo](3, unsafe.iterRawConstruct)
       Generator(constructors, parameters)
     }
     
     object parameters {
       lazy val name: CaseClassParm[UrlRepo,CiString] = CaseClassParm[UrlRepo,CiString]("name", _.name, (d,v) => d.copy(name = v), None, 0)
       lazy val url: CaseClassParm[UrlRepo,Uri] = CaseClassParm[UrlRepo,Uri]("url", _.url, (d,v) => d.copy(url = v), None, 1)
+      lazy val generatedChecksums: CaseClassParm[UrlRepo,Vector[String]] = CaseClassParm[UrlRepo,Vector[String]]("generatedChecksums", _.generatedChecksums, (d,v) => d.copy(generatedChecksums = v), Some(()=> Vector("sha256")), 2)
     }
     
     
@@ -117,6 +123,7 @@ object MxConfig {
         UrlRepo(
           name = values(0).asInstanceOf[CiString],
           url = values(1).asInstanceOf[Uri],
+          generatedChecksums = values(2).asInstanceOf[Vector[String]],
         )
       }
       def iterRawConstruct(values: Iterator[Any]): UrlRepo = {
@@ -124,13 +131,14 @@ object MxConfig {
           UrlRepo(
             name = values.next().asInstanceOf[CiString],
             url = values.next().asInstanceOf[Uri],
+            generatedChecksums = values.next().asInstanceOf[Vector[String]],
           )
         if ( values.hasNext )
            sys.error("")
         value
       }
-      def typedConstruct(name: CiString, url: Uri): UrlRepo =
-        UrlRepo(name, url)
+      def typedConstruct(name: CiString, url: Uri, generatedChecksums: Vector[String]): UrlRepo =
+        UrlRepo(name, url, generatedChecksums)
     
     }
     
@@ -151,6 +159,7 @@ object MxConfig {
         a8.shared.json.JsonObjectCodecBuilder(generator)
           .addField(_.name)
           .addField(_.directory)
+          .addField(_.generatedChecksums)
       )
       .build
     
@@ -160,13 +169,14 @@ object MxConfig {
     
     
     lazy val generator: Generator[LocalRepo,parameters.type] =  {
-      val constructors = Constructors[LocalRepo](2, unsafe.iterRawConstruct)
+      val constructors = Constructors[LocalRepo](3, unsafe.iterRawConstruct)
       Generator(constructors, parameters)
     }
     
     object parameters {
       lazy val name: CaseClassParm[LocalRepo,CiString] = CaseClassParm[LocalRepo,CiString]("name", _.name, (d,v) => d.copy(name = v), None, 0)
       lazy val directory: CaseClassParm[LocalRepo,String] = CaseClassParm[LocalRepo,String]("directory", _.directory, (d,v) => d.copy(directory = v), None, 1)
+      lazy val generatedChecksums: CaseClassParm[LocalRepo,Vector[String]] = CaseClassParm[LocalRepo,Vector[String]]("generatedChecksums", _.generatedChecksums, (d,v) => d.copy(generatedChecksums = v), Some(()=> Vector("sha256")), 2)
     }
     
     
@@ -176,6 +186,7 @@ object MxConfig {
         LocalRepo(
           name = values(0).asInstanceOf[CiString],
           directory = values(1).asInstanceOf[String],
+          generatedChecksums = values(2).asInstanceOf[Vector[String]],
         )
       }
       def iterRawConstruct(values: Iterator[Any]): LocalRepo = {
@@ -183,13 +194,14 @@ object MxConfig {
           LocalRepo(
             name = values.next().asInstanceOf[CiString],
             directory = values.next().asInstanceOf[String],
+            generatedChecksums = values.next().asInstanceOf[Vector[String]],
           )
         if ( values.hasNext )
            sys.error("")
         value
       }
-      def typedConstruct(name: CiString, directory: String): LocalRepo =
-        LocalRepo(name, directory)
+      def typedConstruct(name: CiString, directory: String, generatedChecksums: Vector[String]): LocalRepo =
+        LocalRepo(name, directory, generatedChecksums)
     
     }
     
@@ -359,7 +371,7 @@ object MxConfig {
       lazy val protocol: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("protocol", _.protocol, (d,v) => d.copy(protocol = v), Some(()=> "https"), 0)
       lazy val proxyServerAddresses: CaseClassParm[LocusConfig,Iterable[String]] = CaseClassParm[LocusConfig,Iterable[String]]("proxyServerAddresses", _.proxyServerAddresses, (d,v) => d.copy(proxyServerAddresses = v), Some(()=> Iterable("127.0.0.0/8")), 1)
       lazy val anonymousSubnets: CaseClassParm[LocusConfig,Iterable[String]] = CaseClassParm[LocusConfig,Iterable[String]]("anonymousSubnets", _.anonymousSubnets, (d,v) => d.copy(anonymousSubnets = v), Some(()=> Iterable.empty), 2)
-      lazy val dataDirectory: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("dataDirectory", _.dataDirectory, (d,v) => d.copy(dataDirectory = v), None, 3)
+      lazy val dataDirectory: CaseClassParm[LocusConfig,String] = CaseClassParm[LocusConfig,String]("dataDirectory", _.dataDirectory, (d,v) => d.copy(dataDirectory = v), Some(()=> "data"), 3)
       lazy val s3: CaseClassParm[LocusConfig,Option[S3Config]] = CaseClassParm[LocusConfig,Option[S3Config]]("s3", _.s3, (d,v) => d.copy(s3 = v), None, 4)
       lazy val repos: CaseClassParm[LocusConfig,Iterable[Repo]] = CaseClassParm[LocusConfig,Iterable[Repo]]("repos", _.repos, (d,v) => d.copy(repos = v), None, 5)
       lazy val users: CaseClassParm[LocusConfig,Iterable[User]] = CaseClassParm[LocusConfig,Iterable[User]]("users", _.users, (d,v) => d.copy(users = v), None, 6)

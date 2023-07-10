@@ -41,11 +41,11 @@ object ResolvedModel extends LoggingF {
   trait ContentGenerator {
     def canGenerateFor(contentPath: ContentPath): Boolean
     def generate(context: String, contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]]
-    def extraEntries(entries: Iterable[DirectoryEntry]): Iterable[DirectoryEntry]
+    def extraEntries(entries: Iterable[DirectoryEntry], topLevelRepo: ResolvedRepo): Iterable[DirectoryEntry]
   }
 
   lazy val contentGenerators: Chain[ContentGenerator] =
-    Chain(GenerateIndexDotHtml, GenerateMavenMetadata, GenerateSha256)
+    Chain(GenerateIndexDotHtml, GenerateMavenMetadata, ChecksumGenerator)
 
   sealed trait RepoContent {
     val repo: ResolvedRepo

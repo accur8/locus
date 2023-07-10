@@ -75,8 +75,8 @@ case class ResolvedS3Repo(
 //      )
   }
 
-  def calculateMd5(file: File): M[GenerateSha256.DigestResults] =
-    GenerateSha256.Md5Validator.digest(file)
+  def calculateMd5(file: File): M[ChecksumHandler.DigestResults] =
+    ChecksumHandler.Md5.digest(file)
 
   override def put(contentPath: ContentPath, contentFile: File): M[PutResult] = {
     val key = keyPrefix.append(contentPath).toString

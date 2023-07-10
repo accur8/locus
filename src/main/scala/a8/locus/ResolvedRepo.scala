@@ -13,13 +13,32 @@ import ZFileSystem.SymlinkHandlerDefaults.follow
 object ResolvedRepo {
 
   lazy val defaultContentGenerators: Vector[ContentGenerator] =
-    Vector(GenerateSha256, GenerateMavenMetadata, GenerateIndexDotHtml)
+    Vector(ChecksumGenerator, GenerateMavenMetadata, GenerateIndexDotHtml)
 
 }
 
 trait ResolvedRepo { self: LoggingF =>
 
   lazy val cacheRoot = resolvedModel.cacheRoot.subdir(repoConfig.name.toString.toLowerCase)
+
+  lazy val generatedChecksumHandlers: Vector[ChecksumHandler] =
+    repoConfig
+      .generatedChecksums
+      .flatMap { checksumName =>
+        val checksumNameLc = checksumName.toLowerCase
+        if ( checksumNameLc == "all" ) {
+          ChecksumHandler.all
+        } else {
+          ChecksumHandler.all.find(_.extensionLc == checksumNameLc) match {
+            case Some(cs) =>
+              cs.some
+            case None =>
+              logger.warn(s"unable to find checksum ${checksumName} in ${repoConfig.name}")
+              None
+          }
+        }
+      }
+      .distinct
 
   def debug(message: String): Unit =
     logger.debug(self.name.toString + " " + message)
@@ -49,7 +68,7 @@ trait ResolvedRepo { self: LoggingF =>
   final def resolveGeneratedContent(path: ContentPath): M[Option[RepoContent]] =
     contentGenerators
       .find(_.canGenerateFor(path))
-      .map(_.generate(s"/repos/${name.toString}",path, this))
+      .map(_.generate(s"/repos/${name.toString}", path, this))
       .getOrElse(zsucceed(None))
 
   def resolveContent(path: ContentPath): M[Option[RepoContent]] = {

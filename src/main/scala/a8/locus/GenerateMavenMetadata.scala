@@ -31,7 +31,6 @@ object GenerateMavenMetadata extends ContentGenerator {
 
 
   override def generate(context: String, contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
-
     resolvedRepo.entries(contentPath.parent).map { entriesOpt =>
       entriesOpt.map { entries =>
         val sortedEntries =
@@ -84,7 +83,7 @@ object GenerateMavenMetadata extends ContentGenerator {
     }
   }
 
-  override def extraEntries(entries: Iterable[DirectoryEntry]): Iterable[DirectoryEntry] =
+  override def extraEntries(entries: Iterable[DirectoryEntry], resolvedRepo: ResolvedRepo): Iterable[DirectoryEntry] =
     Iterable.empty
 
 }

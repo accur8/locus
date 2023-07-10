@@ -3,18 +3,19 @@ package a8.locus.ziohttp
 
 import a8.locus.Config.{Subnet, SubnetManager, User, UserPrivilege}
 import a8.locus.Dsl.UrlPath
-import a8.locus.ResolvedModel
+import a8.locus.{ChecksumHandler, ResolvedModel, ResolvedRepo}
 import a8.locus.ResolvedModel.PutResult
 import a8.locus.ResolvedModel.RepoContent.TempFile
-import a8.locus.ResolvedRepo
 import a8.shared.app.LoggingF
 import org.apache.commons.net.util.SubnetUtils
 import org.slf4j.MDC
 
 import java.nio.ByteBuffer
 import a8.locus.SharedImports.*
-import zio.http.{Body, Headers, Method}
+import a8.shared.ZFileSystem
+import zio.http.{Body, Headers, MediaType, Method}
 import model.*
+import zio.http.Header.ContentType
 import zio.stream.ZStream
 
 object RepoHttpHandler {
@@ -22,6 +23,11 @@ object RepoHttpHandler {
 }
 
 case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedRepo) extends ZHttpHandler with LoggingF {
+
+  object ContentTypes {
+    lazy val jarContentType = ContentType(MediaType("application", "java-archive"))
+    lazy val textHtml = ContentType(MediaType("text", "html"))
+  }
 
   case class RequestParms(
     urlPath: UrlPath,
@@ -100,32 +106,61 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
   def doGet(request: Request, path: ContentPath): M[HttpResponse] = {
     resolvedRepo
       .resolveContent(path)
-      .map {
+      .flatMap {
         case Some(resolvedContent) =>
           logger.debug(s"resolved content using ${resolvedContent.repo.name} -- ${resolvedContent}")
           import a8.locus.ResolvedModel.RepoContent.*
           resolvedContent match {
             case CacheFile(file, _) =>
-              HttpResponse.fromFile(file)
+              responseFromFile(file, None)
             case TempFile(file, _) =>
-              HttpResponse.fromFile(file)
+              responseFromFile(file, None)
             case GeneratedContent(_, contentType, content) =>
-              HttpResponse(
-                body = Body.fromString(content),
-                headers = contentType.map(Headers(_)).getOrElse(Headers.empty),
-              )
+              responseFromString(content, contentType)
             case GeneratedFile(response, contentType, _) =>
-              HttpResponse(
-                body = Body.fromFile(response.asJioFile),
-                headers = Headers(contentType),
-              )
+              responseFromFile(response, contentType)
             case Redirect(path, _) =>
               val rootPath = UrlPath.fromZHttpPath(request.path)
-              HttpResponse.permanentRedirect(rootPath.append(path))
+              zsucceed(HttpResponse.permanentRedirect(rootPath.append(path)))
           }
         case None =>
-          HttpResponse.notFound(s"unable to resolve ${request.path}")
+          zsucceed(HttpResponse.notFound(s"unable to resolve ${request.path}"))
       }
+  }
+
+
+  def responseFromString(content: String, contentType: Option[ContentType]): M[HttpResponse] =
+    zsucceed(
+      HttpResponse(
+        body = Body.fromString(content),
+        headers = Headers(contentType),
+      )
+    )
+
+  def responseFromFile(file: ZFileSystem.File, contentType: Option[ContentType]): M[HttpResponse] =
+    checksumHeaders(file, contentType)
+      .map { headers =>
+        HttpResponse(body = Body.fromFile(file.asNioPath.toFile), headers = headers)
+      }
+
+  def checksumHeaders(file: ZFileSystem.File, contentType: Option[ContentType]): M[Headers] =
+    ChecksumHandler
+      .responseHeaders
+      .map(cs => cs.digest(file).map(dr => Headers(s"x-checksum-${cs.extension}", dr.asHexString)))
+      .sequencePar
+      .map { headers =>
+        headers.foldLeft(Headers(contentType.orElse(defaultContentType(file))))(_ ++ _)
+      }
+
+  def defaultContentType(file: ZFileSystem.File): Option[ContentType] = {
+    val path = file.path.toLowerCase
+    if ( path.endsWith(".jar") ) {
+      Some(ContentTypes.jarContentType)
+    } else if ( path.endsWith(".pom") ) {
+      Some(ContentTypes.textHtml)
+    } else {
+      None
+    }
   }
 
 }
