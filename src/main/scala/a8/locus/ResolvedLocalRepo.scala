@@ -34,7 +34,7 @@ case class ResolvedLocalRepo(
     )
   }
 
-  override def singleDownload(contentPath: ContentPath): M[Option[DownloadResult]] =
+  override def singleDownload0(contentPath: ContentPath): M[Option[DownloadResult]] =
     zsucceed(None)
 
   override def entries0(contentPath: ContentPath): M[Option[Vector[DirectoryEntry]]] = {

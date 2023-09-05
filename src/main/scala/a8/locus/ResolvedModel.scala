@@ -78,7 +78,7 @@ object ResolvedModel extends LoggingF {
 
   sealed trait DownloadResult
   object DownloadResult {
-    case class Success(file: File) extends DownloadResult
+    case class Success(repo: ResolvedRepo, file: File) extends DownloadResult
     case class AsRepoContent(repoContent: RepoContent) extends DownloadResult
   }
 

@@ -1,9 +1,12 @@
 package a8.locus
 
+import a8.locus.ResolvedRepo.RepoLoggingService
+import a8.locus.ziohttp.model.M
 import a8.shared.app.Logging
 import a8.shared.json.ast.JsStr
 import a8.shared.json.{JsonCodec, JsonTypedCodec}
 import zio.prelude.Equal
+
 import scala.language.implicitConversions
 
 object SharedImports extends a8.shared.SharedImports with Logging {
@@ -49,31 +52,38 @@ object SharedImports extends a8.shared.SharedImports with Logging {
 
   }
 
-  implicit def moreImplicitZioOps[R, E, A](effect: zio.ZIO[R, E, A]): MoreZioOps[R, E, A] =
+  implicit def moreImplicitZioOps[A](effect: M[A]): MoreZioOps[A] =
     new MoreZioOps(effect)
 
-  class MoreZioOps[R, E, A](effect: zio.ZIO[R, E, A])(implicit trace: zio.Trace) {
+  class MoreZioOps[A](effect: M[A])(implicit trace: zio.Trace) {
 
     /**
       * wraps the effect to log the start of the effect and
       * it's success value or its error value
       */
-    def traceDebug(context: String, maxLength: Int = 256)(implicit loggerF: a8.shared.app.LoggerF, trace: zio.Trace): zio.ZIO[R, E, A] =
-      loggerF.debug(s"start ${context}")
-        .flatMap(_ => effect)
-        .flatMap { v =>
-          val vToString =
-            v.toString match {
-              case s if s.length > maxLength =>
-                s.substring(0, maxLength) + ". . ."
-              case s =>
-                s
-            }
-          loggerF.debug(s"success ${context} -- ${vToString}")
-            .as(v)
-        }
-        .onError { cause =>
-          loggerF.debug(s"error ${context}", cause)
-        }
+    def traceDebug(context: String, maxLength: Int = 256)(implicit loggerF: a8.shared.app.LoggerF, trace: zio.Trace): M[A] =
+      zservice[RepoLoggingService].flatMap( repoLoggingService =>
+        repoLoggingService.debug(s"start ${context}")
+          .flatMap(_ => effect)
+          .flatMap { v =>
+            val vToString =
+              v.toString match {
+                case s if s.length > maxLength =>
+                  s.substring(0, maxLength) + ". . ."
+                case s =>
+                  s
+              }
+            repoLoggingService.debug(s"success ${context} -- ${vToString}")
+              .as(v)
+          }
+          .either
+          .flatMap {
+            case Right(v) =>
+              zsucceed(v)
+            case Left(th) =>
+              repoLoggingService.debug(s"error ${context}\n${th.stackTraceAsString}")
+                .asZIO(zfail(th))
+          }
+      )
   }
 }

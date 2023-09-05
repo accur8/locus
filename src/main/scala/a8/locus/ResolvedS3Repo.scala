@@ -7,6 +7,7 @@ import ziohttp.model.*
 import SharedImports.*
 import a8.locus.Config.S3Config
 import a8.locus.Dsl.UrlPath
+import a8.locus.ResolvedRepo.RepoLoggingService
 import a8.locus.UrlAssist.BasicAuth
 import a8.shared.ZFileSystem
 import a8.shared.ZFileSystem.File
@@ -34,18 +35,20 @@ case class ResolvedS3Repo(
       .asContentPath
 
 
-  override def singleDownload(contentPath: ContentPath): M[Option[ResolvedModel.DownloadResult]] = zsuspend {
+  override def singleDownload0(contentPath: ContentPath): M[Option[ResolvedModel.DownloadResult]] = zsuspend {
     import RepoContent._
     val key = keyPrefix.append(contentPath).asFile.fullPath
     val content = zio.s3.getObject(bucket.value, key)
     val effect: ZIO[Env, Throwable, File] =
       for {
+        repoLoggingService <- zservice[RepoLoggingService]
+        _ <- repoLoggingService.trace(s"${name}.singleDownload0 S3 GET ${bucket} ${key}")
         tempFile <- resolvedModel.tempFile
         _ <- tempFile.parent.resolve
         _ <- content.run(ZSink.fromFile(tempFile.asJioFile))(zio.Trace("nodebuglogging","",0))
       } yield tempFile
     S3Assist.handleNotFound(effect)
-      .map(_.map(DownloadResult.Success.apply))
+      .map(_.map(DownloadResult.Success(this, _)))
   }
 
 

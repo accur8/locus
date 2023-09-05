@@ -45,12 +45,31 @@ object GenerateIndexDotHtml extends ContentGenerator {
       e => suffix(e).some,
     )
 
+  def action(label: String, action: String, entry: DirectoryEntry): Option[String] =
+    Some(
+      s"""<a href="${entry.name}?action=${action}">${action}</a>"""
+    )
+
+  val ClearCacheAction =
+    Column(
+      "Clear Cache",
+      e => action("Clear Cache", "clearcache", e),
+    )
+
+  val DebugAction =
+    Column(
+      "Debug",
+      e => action("Debug", "debug", e).filter(_ => !e.isDirectory),
+    )
+
   val Columns =
     Vector(
       Name,
       LastModified,
       Size,
       Repo,
+      ClearCacheAction,
+      DebugAction,
     )
 
   override def canGenerateFor(contentPath: ContentPath): Boolean =
@@ -120,6 +139,9 @@ ${
     .mkString("\n")
 }
     </table>
+    <br/>
+    <br/>
+    <a href="/repos/${resolvedRepo.name}/?action=clearcache">clear cache for entire directory</a>
   </body>
 </html>
               """.trim,
@@ -133,7 +155,7 @@ ${
     else {
       e.directUrl match {
         case Some(directUrl) =>
-          s"""<a href="${directUrl}">${e.resolvedRepo.name}</a> """
+          s"""<a href="${directUrl}">${e.resolvedRepo.name}</a>"""
         case None =>
           e.resolvedRepo.name.toString
       }

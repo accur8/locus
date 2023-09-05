@@ -40,7 +40,7 @@ case class ResolvedMultiplexer(
     }
 
 
-  override def singleDownload(contentPath: ContentPath): M[Option[ResolvedModel.DownloadResult]] =
+  override def singleDownload0(contentPath: ContentPath): M[Option[ResolvedModel.DownloadResult]] =
     fastestRepoWithContent(_.singleDownload(contentPath))
 
   override def entries0(contentPath: ContentPath): M[Option[Vector[DirectoryEntry]]] =
@@ -70,6 +70,13 @@ case class ResolvedMultiplexer(
   //            )
   //        }
   //      }
+
+  override def clearCache(contentPath: ContentPath): M[Iterable[(ResolvedRepo, String)]] = {
+    for {
+      superResults <- super.clearCache(contentPath)
+      delegateResults <- delegates.map(_.clearCache(contentPath)).sequencePar.map(_.flatten)
+    } yield superResults ++ delegateResults
+  }
 
   override def put(path: ContentPath, content: File): M[ResolvedModel.PutResult] =
     repoForWrites

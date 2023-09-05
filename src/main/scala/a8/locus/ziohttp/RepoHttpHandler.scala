@@ -6,6 +6,7 @@ import a8.locus.Dsl.UrlPath
 import a8.locus.{ChecksumHandler, ResolvedModel, ResolvedRepo}
 import a8.locus.ResolvedModel.PutResult
 import a8.locus.ResolvedModel.RepoContent.TempFile
+import a8.locus.ResolvedRepo.RepoLoggingService
 import a8.shared.app.LoggingF
 import org.apache.commons.net.util.SubnetUtils
 import org.slf4j.MDC
@@ -46,6 +47,8 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
     requiredPrivilege: UserPrivilege,
     handler: (Request,ContentPath)=>M[HttpResponse],
   )
+
+  val DEBUG = Method.CUSTOM("DEBUG")
 
   lazy val methodHandlers: Map[Method,MethodHandler] =
     Seq(
@@ -104,6 +107,20 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
       }
 
   def doGet(request: Request, path: ContentPath): M[HttpResponse] = {
+    val action = request.url.queryParams.get("action").flatMap(_.headOption).map(_.toLowerCase)
+    action match {
+      case Some("debug") =>
+        doDebug(request, path)
+      case Some("clearcache") =>
+        doClearCache(request, path)
+      case Some(action) =>
+        zsucceed(HttpResponse.notFound(s"no action named ${action} found valid actions are debug and clearcache"))
+      case None =>
+        doGet0(request, path)
+    }
+  }
+
+  def doGet0(request: Request, path: ContentPath): M[HttpResponse] = {
     resolvedRepo
       .resolveContent(path, true)
       .flatMap {
@@ -125,6 +142,31 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
           }
         case None =>
           zsucceed(HttpResponse.notFound(s"unable to resolve ${request.path}"))
+      }
+  }
+
+  def doClearCache(request: Request, path: ContentPath): M[HttpResponse] = {
+    resolvedRepo
+      .clearCache(path)
+      .flatMap { paths =>
+        val responseBody = paths.map(p => s"${p._1.name}/${p._2}").mkString("\n")
+        responseFromString(responseBody, None)
+      }
+  }
+
+  def doDebug(request: Request, path: ContentPath): M[HttpResponse] = zservice[RepoLoggingService].flatMap { repoLoggingService =>
+    resolvedRepo
+      .resolveContent(path, true)
+      .either
+      .flatMap {
+        case Left(th) =>
+          repoLoggingService.error(s"http request failed\n${th.stackTraceAsString}")
+        case Right(_) =>
+          zunit
+      }
+      .asZIO(repoLoggingService.logs.map(_.mkString("\n")))
+      .flatMap { logs =>
+        responseFromString(logs, None)
       }
   }
 

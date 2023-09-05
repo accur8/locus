@@ -48,6 +48,9 @@ object ResolvedRepo {
     def trace(message: String, throwable: Throwable = null)(implicit loggerF: LoggerF, trace: Trace): zio.Task[Unit] =
       log(LogLevel.TRACE, message, throwable)
 
+    def debug(message: String, throwable: Throwable = null)(implicit loggerF: LoggerF, trace: Trace): zio.Task[Unit] =
+      log(LogLevel.DEBUG, message, throwable)
+
     def info(message: String, throwable: Throwable = null)(implicit loggerF: LoggerF, trace: Trace): zio.Task[Unit] =
       log(LogLevel.INFO, message, throwable)
 
@@ -120,13 +123,14 @@ trait ResolvedRepo { self: LoggingF =>
             .asZIO(retry)
         case Right(None) =>
           zsucceed(None)
-        case Right(Some(DownloadResult.Success(file))) =>
-          validateChecksums(file, contentPath)
+        case Right(Some(DownloadResult.Success(repo, file))) =>
+          repo
+            .validateChecksums(file, contentPath)
             .either
             .flatMap {
               case Right(checksums) =>
                 repoLoggingService.trace(s"repo ${name} - ${contentPath} - ${if ( checksums.isEmpty ) "pass because no checksums" else s"checksums ${checksums.map(_.extension).mkString(" ")} pass"}")
-                  .as(Some(TempFile(file, this, checksums)))
+                  .as(Some(TempFile(file, repo, checksums)))
               case Left(th) =>
                 repoLoggingService.warn(s"repo ${name} error downloading ${contentPath} ${retriesLeft} retries left -- failed checksums", th)
                   .asZIO(retry)
@@ -137,7 +141,11 @@ trait ResolvedRepo { self: LoggingF =>
       }
   }
 
-  def singleDownload(contentPath: ContentPath): M[Option[DownloadResult]]
+  final def singleDownload(contentPath: ContentPath): M[Option[DownloadResult]] =
+    singleDownload0(contentPath)
+      .traceDebug(s"${name}.singleDownload(${contentPath})")
+
+  def singleDownload0(contentPath: ContentPath): M[Option[DownloadResult]]
 
   def put(path: ContentPath, content: ZFileSystem.File): M[PutResult] =
     zsucceed(PutResult.NotAllowed)
@@ -204,7 +212,7 @@ trait ResolvedRepo { self: LoggingF =>
         zunit
     }
 
-  def cacheFile(contentPath: ContentPath) = {
+  def cacheFile(contentPath: ContentPath): File = {
     contentPath
       .parts
       .dropRight(1)
@@ -243,10 +251,38 @@ trait ResolvedRepo { self: LoggingF =>
       cacheFile0
         .existsAsFile
         .map(_.toOption(CacheFile(cacheFile0, this)))
-        .traceDebug(s"${name}.cachedContent(${contentPath})")
+        .traceDebug(s"${name}.cachedContent(${contentPath}) - ${cacheFile0.absolutePath}")
     } else {
       zsucceed(None)
     }
+  }
+
+  /**
+    * works on directories and partial matches
+    * @param contentPath
+    * @return
+    */
+  def clearCache(contentPath: ContentPath): M[Iterable[(ResolvedRepo,String)]] = {
+    val cachePrefix = cacheRoot.absolutePath
+    val path = cacheFile(contentPath)
+    val isDirectory = java.nio.file.Files.isDirectory(path.asNioPath)
+    val (directory, filter) =
+      if ( isDirectory ) {
+        ZFileSystem.dir(path.absolutePath) -> { (p: ZFileSystem.Path) => true }
+      } else {
+        val prefix = contentPath.last
+        path.parent -> { (p: ZFileSystem.Path) => p.name.startsWith(prefix) }
+      }
+    directory
+      .entries
+      .map(_.filter(filter))
+      .flatMap { entries =>
+        val response = entries.map(e => this -> e.absolutePath.substring(cachePrefix.length))
+        entries
+          .map(_.delete)
+          .sequencePar
+          .as(response)
+      }
   }
 
   override def toString: String = s"Repo(${name})"

@@ -6,6 +6,7 @@ import a8.shared.app.{Logging, LoggingF}
 import ziohttp.model.*
 import SharedImports.*
 import a8.locus.Dsl.UrlPath
+import a8.locus.ResolvedRepo.RepoLoggingService
 import a8.locus.UrlAssist.BasicAuth
 import a8.shared.ZFileSystem
 import a8.shared.ZFileSystem.File
@@ -48,49 +49,57 @@ case class ResolvedHttpRepo(
 
 //  override def contentUrl(contentPath: ContentPath): String = (model.url / contentPath).toString
 
-  override def singleDownload(contentPath: ContentPath): M[Option[ResolvedModel.DownloadResult]] = {
+  override def singleDownload0(contentPath: ContentPath): M[Option[ResolvedModel.DownloadResult]] = {
 
     import ResolvedModel.DownloadResult._
 
     val targetUrl = repoConfig.url / contentPath
 
-    UrlAssist.get(targetUrl, auth = resolvedAuth, followRedirects = false).flatMap { response =>
-
-      import RepoContent._
-
-      response.status match {
-        case 200 if contentPath.isDirectory =>
-          zsucceed(
-            Some(AsRepoContent(GeneratedFile(response.bodyAsFile.get, ContentTypes.html.some, this)))
+    UrlAssist
+      .get(targetUrl, auth = resolvedAuth, followRedirects = false)
+      .tap(response =>
+        zservice[RepoLoggingService]
+          .flatMap(repoLoggingService =>
+            repoLoggingService.trace(s"${name}.singleDownload0 GET of ${targetUrl} returned ${response.status}")
           )
-        case 200 =>
-          response.bodyAsFile match {
-            case None =>
-              zfail(new RuntimeException("got no response body on a 200 this should not happen"))
-            case Some(f) =>
-              zsucceed(Some(Success(f)))
-          }
-        case 404 | 403 =>
-          zsucceed(None)
-        case 302 =>
-          val absoluteRemoteLocation = response.headers("Location")
-          remoteLocationPrefix match {
-            case Some(rlp) =>
-              if (absoluteRemoteLocation.startsWith(rlp)) {
-                val resolvedLocation = absoluteRemoteLocation.substring(rlp.length)
-                zsucceed(Some(AsRepoContent(Redirect(UrlPath.parse(resolvedLocation), this))))
-              } else {
-                logger.warn(s"redirect doesn't match remoteLocationPrefix -- ${absoluteRemoteLocation} -- ${rlp}")
-                zsucceed(None)
-              }
-            case None =>
-              zsucceed(Some(AsRepoContent(Redirect(UrlPath.parse(absoluteRemoteLocation), this))))
-          }
-        case _ =>
-          logger.error(s"unsupported status of ${response.status} on GET ${targetUrl}")
-          zsucceed(None)
+      )
+      .flatMap { response =>
+
+        import RepoContent._
+
+        response.status match {
+          case 200 if contentPath.isDirectory =>
+            zsucceed(
+              Some(AsRepoContent(GeneratedFile(response.bodyAsFile.get, ContentTypes.html.some, this)))
+            )
+          case 200 =>
+            response.bodyAsFile match {
+              case None =>
+                zfail(new RuntimeException("got no response body on a 200 this should not happen"))
+              case Some(f) =>
+                zsucceed(Some(Success(this, f)))
+            }
+          case 404 | 403 =>
+            zsucceed(None)
+          case 302 =>
+            val absoluteRemoteLocation = response.headers("Location")
+            remoteLocationPrefix match {
+              case Some(rlp) =>
+                if (absoluteRemoteLocation.startsWith(rlp)) {
+                  val resolvedLocation = absoluteRemoteLocation.substring(rlp.length)
+                  zsucceed(Some(AsRepoContent(Redirect(UrlPath.parse(resolvedLocation), this))))
+                } else {
+                  logger.warn(s"redirect doesn't match remoteLocationPrefix -- ${absoluteRemoteLocation} -- ${rlp}")
+                  zsucceed(None)
+                }
+              case None =>
+                zsucceed(Some(AsRepoContent(Redirect(UrlPath.parse(absoluteRemoteLocation), this))))
+            }
+          case _ =>
+            logger.error(s"unsupported status of ${response.status} on GET ${targetUrl}")
+            zsucceed(None)
+        }
       }
-    }
 
   }
 
