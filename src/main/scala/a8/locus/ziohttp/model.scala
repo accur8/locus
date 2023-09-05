@@ -3,6 +3,7 @@ package a8.locus.ziohttp
 
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel
+import a8.locus.ResolvedRepo.RepoLoggingService
 import zio.{Chunk, ZIO}
 import zio.http.{Body, Header, Headers, MediaType, Method, Request, Response, Status, URL}
 import a8.locus.SharedImports.*
@@ -132,7 +133,7 @@ object model {
 
   }
 
-  type Env = zio.s3.S3 & zio.Scope & ResolvedModel & UserService & S3Client
+  type Env = zio.s3.S3 & zio.Scope & ResolvedModel & UserService & S3Client & RepoLoggingService
 
   type M[A] = zio.ZIO[Env, Throwable,A]
 
@@ -252,17 +253,25 @@ object model {
       def parent = copy(parts = parts.init, isDirectory = true)
 
       def appendExtension(extension: String): ContentPath =
-        copy(parts = parts.dropRight(1) ++ Some(parts.last + extension))
+        copy(parts = parts.dropRight(1) ++ Some(parts.last + "." + extension))
+
+      def extension: String =
+        parts.last.lastIndexOf(".") match {
+          case i if i >= 0 =>
+            parts.last.substring(i+1)
+          case _ =>
+            ""
+        }
 
       def dropExtension: Option[ContentPath] =
-        parts.last.lastIndexOf(".") match {
-          case i if i > 0 =>
-            val filename = parts.last.substring(0, i)
-            copy(parts = parts.dropRight(1) ++ Some(filename))
-              .some
-          case _ =>
-            None
-        }
+          parts.last.lastIndexOf(".") match {
+            case i if i > 0 =>
+              val filename = parts.last.substring(0, i)
+              copy(parts = parts.dropRight(1) ++ Some(filename))
+                .some
+            case _ =>
+              None
+          }
 
       override def append(suffix: ContentPath): ContentPath =
         copy(parts = parts ++ suffix.parts, suffix.isDirectory)
@@ -280,6 +289,7 @@ object model {
     val parts: Seq[String]
     val isDirectory: Boolean
     def append(suffix: ContentPath): ContentPath
+    def extension: String
     def dropExtension: Option[ContentPath]
     def appendExtension(extension: String): ContentPath
     def asDirectory: ContentPath

@@ -95,7 +95,7 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
 
   def doHead(request: Request, path: ContentPath): M[HttpResponse] =
     resolvedRepo
-      .resolveContent(path)
+      .resolveContent(path, true)
       .flatMap {
         case Some(_) =>
           HttpResponses.Ok()
@@ -105,7 +105,7 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
 
   def doGet(request: Request, path: ContentPath): M[HttpResponse] = {
     resolvedRepo
-      .resolveContent(path)
+      .resolveContent(path, true)
       .flatMap {
         case Some(resolvedContent) =>
           logger.debug(s"resolved content using ${resolvedContent.repo.name} -- ${resolvedContent}")
@@ -113,7 +113,7 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
           resolvedContent match {
             case CacheFile(file, _) =>
               responseFromFile(file, None)
-            case TempFile(file, _) =>
+            case TempFile(file, _, _) =>
               responseFromFile(file, None)
             case GeneratedContent(_, contentType, content) =>
               responseFromString(content, contentType)

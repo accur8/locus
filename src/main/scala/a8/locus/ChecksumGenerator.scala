@@ -45,32 +45,15 @@ object ChecksumGenerator extends ContentGenerator {
               zsucceed(None)
             case Some(contentFile) =>
               ChecksumHandler
-                .validators
-                .map(_.validate(basePath, contentFile, resolvedRepo))
-                .sequencePar
-                .map(_.flatten)
-                .flatMap { validations =>
-                  if (validations.forall(_ == ValidationResult.Valid)) {
-                    ChecksumHandler
-                      .Sha256
-                      .digest(contentFile)
-                      .map(digest =>
-                        GeneratedContent(
-                          resolvedRepo,
-                          contentType = None,
-                          content = digest.asHexString,
-                        ).some
-                      )
-                    //                    DigestUtils.sha256Hex()
-                    //                      .withInputStream( inputStream =>
-                    //                      Some(HttpResponseBody.fromStr(DigestUtils.sha256Hex(inputStream)))
-                    //                    )
-                    //                  }
-                  } else {
-                    // respond noting failing checksums in a header
-                    zsucceed(None)
-                  }
-                }
+                .Sha256
+                .digest(contentFile)
+                .map(digest =>
+                  GeneratedContent(
+                    resolvedRepo,
+                    contentType = None,
+                    content = digest.asHexString,
+                  ).some
+                )
           }
         }
       }
@@ -80,9 +63,9 @@ object ChecksumGenerator extends ContentGenerator {
 
   def resolveContentAsFile(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[File]] =
     resolvedRepo
-      .resolveContent(contentPath)
+      .resolveContent(contentPath, false)
       .map {
-        case Some(TempFile(file, _)) =>
+        case Some(TempFile(file, _, _)) =>
           Some(file)
         case Some(CacheFile(file, _)) =>
           Some(file)

@@ -48,7 +48,9 @@ case class ResolvedHttpRepo(
 
 //  override def contentUrl(contentPath: ContentPath): String = (model.url / contentPath).toString
 
-  override def downloadContent0(contentPath: ContentPath): M[Option[RepoContent]] = {
+  override def singleDownload(contentPath: ContentPath): M[Option[ResolvedModel.DownloadResult]] = {
+
+    import ResolvedModel.DownloadResult._
 
     val targetUrl = repoConfig.url / contentPath
 
@@ -59,14 +61,15 @@ case class ResolvedHttpRepo(
       response.status match {
         case 200 if contentPath.isDirectory =>
           zsucceed(
-            Some(GeneratedFile(response.bodyAsFile.get, ContentTypes.html.some, this))
+            Some(AsRepoContent(GeneratedFile(response.bodyAsFile.get, ContentTypes.html.some, this)))
           )
         case 200 =>
-          zsucceed(
-            response
-              .bodyAsFile
-              .map(TempFile(_, this))
-          )
+          response.bodyAsFile match {
+            case None =>
+              zfail(new RuntimeException("got no response body on a 200 this should not happen"))
+            case Some(f) =>
+              zsucceed(Some(Success(f)))
+          }
         case 404 | 403 =>
           zsucceed(None)
         case 302 =>
@@ -75,13 +78,13 @@ case class ResolvedHttpRepo(
             case Some(rlp) =>
               if (absoluteRemoteLocation.startsWith(rlp)) {
                 val resolvedLocation = absoluteRemoteLocation.substring(rlp.length)
-                zsucceed(Some(Redirect(UrlPath.parse(resolvedLocation), this)))
+                zsucceed(Some(AsRepoContent(Redirect(UrlPath.parse(resolvedLocation), this))))
               } else {
                 logger.warn(s"redirect doesn't match remoteLocationPrefix -- ${absoluteRemoteLocation} -- ${rlp}")
                 zsucceed(None)
               }
             case None =>
-              zsucceed(Some(Redirect(UrlPath.parse(absoluteRemoteLocation), this)))
+              zsucceed(Some(AsRepoContent(Redirect(UrlPath.parse(absoluteRemoteLocation), this))))
           }
         case _ =>
           logger.error(s"unsupported status of ${response.status} on GET ${targetUrl}")

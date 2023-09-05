@@ -1,9 +1,9 @@
 package a8.locus
 
 
-import a8.locus.ChecksumHandler.ValidationResult
+import a8.locus.ChecksumHandler.{Checksum, ValidationResult}
 import a8.locus.Dsl.UrlPath
-import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry, RepoContent}
+import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry, RepoContent, contentGenerators}
 import a8.locus.ResolvedModel.RepoContent.{CacheFile, GeneratedContent, TempFile}
 import a8.locus.SharedImports.*
 import a8.locus.model.DateTime
@@ -19,6 +19,14 @@ import java.time.Month
 import ziohttp.model.*
 
 object ChecksumHandler {
+
+  case class Checksum(extension: String, value: String)
+
+  def isChecksum(contentPath: ContentPath): Boolean = {
+    val e = contentPath.extension.toLowerCase
+    val result = all.exists(_.extension == e)
+    result
+  }
 
   case class DigestResults(bytes: Chunk[Byte]) {
     def asHexString = org.apache.commons.codec.binary.Hex.encodeHexString(bytes.toArray)
@@ -60,7 +68,7 @@ object ChecksumHandler {
   sealed trait ValidationResult
   object ValidationResult {
     case class Invalid(message: String) extends ValidationResult
-    case object Valid extends ValidationResult
+    case class Valid(checksum: Checksum) extends ValidationResult
   }
 
 }
@@ -87,13 +95,14 @@ abstract class ChecksumHandler(val extension: String, val includeInResponseHeade
 
   def isChecksumValid(contentFile: ZFileSystem.File, checksumFile: ZFileSystem.File): M[ValidationResult] =
     for {
-      expectedChecksum <- checksumFile.readAsString
-      actualChecksum <- digest(contentFile)
+      expectedChecksum0 <- checksumFile.readAsString
+      actualDigestResults <- digest(contentFile)
     } yield {
       def scrub(s: String) = s.trim.toLowerCase
-
-      if (scrub(actualChecksum.asHexString) === scrub(expectedChecksum)) {
-        ValidationResult.Valid
+      val expectedChecksum = scrub(expectedChecksum0)
+      val actualChecksum = scrub(actualDigestResults.asHexString)
+      if (actualChecksum === expectedChecksum) {
+        ValidationResult.Valid(Checksum(extension, expectedChecksum))
       } else {
         ValidationResult.Invalid(s"checksum mismatch actual != expected -- ${actualChecksum} != ${expectedChecksum}")
       }
@@ -101,9 +110,9 @@ abstract class ChecksumHandler(val extension: String, val includeInResponseHeade
 
   def resolveContentAsFile(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[File]] =
     resolvedRepo
-      .resolveContent(contentPath)
+      .resolveContent(contentPath, false)
       .map {
-        case Some(TempFile(file, _)) =>
+        case Some(TempFile(file, _, _)) =>
           Some(file)
         case Some(CacheFile(file, _)) =>
           Some(file)

@@ -2,8 +2,9 @@ package a8.locus.ziohttp
 
 import a8.locus.Config.{LocusConfig, SubnetManager}
 import a8.locus.ResolvedModel
-import a8.shared.app.LoggingF
-import zio.{Chunk, Layer, Task, ZIO}
+import a8.locus.ResolvedRepo.RepoLoggingService
+import a8.shared.app.{LoggerF, LoggingF}
+import zio.{Chunk, Layer, Task, Trace, UIO, ZIO}
 import zio.http.{Body, Http, HttpApp, HttpError, Request, Response, Status}
 import a8.locus.ziohttp.model.*
 import a8.locus.SharedImports.*
@@ -66,6 +67,8 @@ case class Router(
 
   lazy val routes: HttpApp[Any, Nothing] =
     Http.collectZIO[Request] { rawRequest =>
+
+      val repoLoggingService = RepoLoggingService.create
       val preFlightRequest = PreFlightRequest(rawRequest.method, Path.fromzioPath(rawRequest.path))
       val context = s"${rawRequest.method} ${rawRequest.url.encode}"
       val preparedRequest = prepareRequest(preFlightRequest)
@@ -95,6 +98,16 @@ case class Router(
           _ <- loggerF.debug(s"completed processing ${response.status.code} -- ${context}")
         } yield response
 
+      def dumpRepoLoggingServiceResults =
+        repoLoggingService.logs.flatMap( logs =>
+          if ( logs.isEmpty ) {
+            zunit
+          } else {
+            val indent = "        "
+            loggerF.debug(s"repoLoggingService\n${logs.mkString("\n").indent(indent)}")
+          }
+        )
+
       val effectWithoutErrors: ZIO[Env, Nothing, Response] =
         rawEffect
           .either
@@ -107,17 +120,22 @@ case class Router(
               zsucceed(response)
           }
           .correlateWith(context)
+          .onExit(_ => dumpRepoLoggingServiceResults)
 
-      effectWithoutErrors
-        .scoped
-        .provide(
-          zl_succeed(s3Client),
-          zl_succeed(s3),
-          zl_succeed(config),
-          UserService.layer,
-          zl_succeed(resolvedModel),
-          zl_succeed(anonymousSubnetManager),
-        )
+      val finalAggregatedEffect: ZIO[Any, Nothing, HttpResponse] =
+        effectWithoutErrors
+          .scoped
+          .provide(
+            zl_succeed(s3Client),
+            zl_succeed(s3),
+            zl_succeed(config),
+            UserService.layer,
+            zl_succeed(resolvedModel),
+            zl_succeed(anonymousSubnetManager),
+            zl_succeed(repoLoggingService),
+          )
+
+      finalAggregatedEffect
 
     }
 

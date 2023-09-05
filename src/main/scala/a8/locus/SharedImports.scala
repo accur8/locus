@@ -56,7 +56,7 @@ object SharedImports extends a8.shared.SharedImports with Logging {
 
     /**
       * wraps the effect to log the start of the effect and
-      * it's success value and/or its error value
+      * it's success value or its error value
       */
     def traceDebug(context: String, maxLength: Int = 256)(implicit loggerF: a8.shared.app.LoggerF, trace: zio.Trace): zio.ZIO[R, E, A] =
       loggerF.debug(s"start ${context}")

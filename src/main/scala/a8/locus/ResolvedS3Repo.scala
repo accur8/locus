@@ -1,7 +1,7 @@
 package a8.locus
 
 
-import a8.locus.ResolvedModel.{DirectoryEntry, PutResult, RepoContent}
+import a8.locus.ResolvedModel.{DirectoryEntry, DownloadResult, PutResult, RepoContent}
 import a8.shared.app.{Logging, LoggingF}
 import ziohttp.model.*
 import SharedImports.*
@@ -13,6 +13,7 @@ import a8.shared.ZFileSystem.File
 import zio.stream.{ZSink, ZStream}
 import a8.locus.S3Assist.BucketName
 import a8.locus.model.DateTime
+import zio.ZIO
 import zio.http.Header.Authorization.Digest
 
 case class ResolvedS3Repo(
@@ -32,17 +33,19 @@ case class ResolvedS3Repo(
       .getOrElse(UrlPath.empty)
       .asContentPath
 
-  override def downloadContent0(contentPath: ContentPath): M[Option[RepoContent]] =  {
+
+  override def singleDownload(contentPath: ContentPath): M[Option[ResolvedModel.DownloadResult]] = zsuspend {
     import RepoContent._
     val key = keyPrefix.append(contentPath).asFile.fullPath
     val content = zio.s3.getObject(bucket.value, key)
-    val effect =
+    val effect: ZIO[Env, Throwable, File] =
       for {
         tempFile <- resolvedModel.tempFile
         _ <- tempFile.parent.resolve
         _ <- content.run(ZSink.fromFile(tempFile.asJioFile))(zio.Trace("nodebuglogging","",0))
-      } yield TempFile(tempFile, this)
+      } yield tempFile
     S3Assist.handleNotFound(effect)
+      .map(_.map(DownloadResult.Success.apply))
   }
 
 

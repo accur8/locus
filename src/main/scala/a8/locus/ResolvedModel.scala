@@ -12,7 +12,7 @@ import a8.locus.Config.{Repo, S3Config}
 import a8.locus.ResolvedModel.RepoContent.CacheFile
 import a8.locus.S3Assist.BucketName
 import a8.locus.UrlAssist.BasicAuth
-import cats.data.Chain
+import cats.data.{Chain, NonEmptyList}
 import SharedImports.*
 import a8.locus.model.DateTime
 import a8.locus.ziohttp.ZHttpHandler
@@ -24,6 +24,7 @@ import zio.stream.ZStream
 import java.time.LocalDateTime
 import ZFileSystem.{Directory, File}
 import ZFileSystem.SymlinkHandlerDefaults.follow
+import a8.locus.ChecksumHandler.Checksum
 import zio.http.Header.ContentType
 
 object ResolvedModel extends LoggingF {
@@ -51,7 +52,7 @@ object ResolvedModel extends LoggingF {
     val repo: ResolvedRepo
   }
   object RepoContent {
-    case class TempFile(file: ZFileSystem.File, repo: ResolvedRepo) extends RepoContent
+    case class TempFile(file: ZFileSystem.File, repo: ResolvedRepo, checksums: Seq[Checksum]) extends RepoContent
     case class CacheFile(file: ZFileSystem.File, repo: ResolvedRepo) extends RepoContent
     case class Redirect(path: UrlPath, repo: ResolvedRepo) extends RepoContent
     case class GeneratedFile(response: ZFileSystem.File, contentType: Option[ContentType], repo: ResolvedRepo) extends RepoContent
@@ -74,6 +75,12 @@ object ResolvedModel extends LoggingF {
 
   enum PutResult:
     case Success, NotAllowed, AlreadyExists
+
+  sealed trait DownloadResult
+  object DownloadResult {
+    case class Success(file: File) extends DownloadResult
+    case class AsRepoContent(repoContent: RepoContent) extends DownloadResult
+  }
 
 }
 

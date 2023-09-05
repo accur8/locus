@@ -39,8 +39,9 @@ case class ResolvedMultiplexer(
       zsucceed(None)
     }
 
-  override def downloadContent0(contentPath: ContentPath): M[Option[RepoContent]] =
-    fastestRepoWithContent(_.downloadContent(contentPath))
+
+  override def singleDownload(contentPath: ContentPath): M[Option[ResolvedModel.DownloadResult]] =
+    fastestRepoWithContent(_.singleDownload(contentPath))
 
   override def entries0(contentPath: ContentPath): M[Option[Vector[DirectoryEntry]]] =
     delegates
