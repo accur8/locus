@@ -93,14 +93,22 @@ abstract class ChecksumHandler(val extension: String, val includeInResponseHeade
       }
   }
 
+  def scrubChecksum(checksum: String): String =
+    checksum
+      .split(' ')
+      .map(_.trim)
+      .filter(_.length > 0)
+      .headOption
+      .getOrElse("")
+      .toLowerCase
+
   def isChecksumValid(contentFile: ZFileSystem.File, checksumFile: ZFileSystem.File): M[ValidationResult] =
     for {
-      expectedChecksum0 <- checksumFile.readAsString
+      rawExpectedChecksum <- checksumFile.readAsString
       actualDigestResults <- digest(contentFile)
     } yield {
-      def scrub(s: String) = s.trim.toLowerCase
-      val expectedChecksum = scrub(expectedChecksum0)
-      val actualChecksum = scrub(actualDigestResults.asHexString)
+      val expectedChecksum = scrubChecksum(rawExpectedChecksum)
+      val actualChecksum = scrubChecksum(actualDigestResults.asHexString)
       if (actualChecksum === expectedChecksum) {
         ValidationResult.Valid(Checksum(extension, expectedChecksum))
       } else {

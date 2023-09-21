@@ -263,7 +263,6 @@ trait ResolvedRepo { self: LoggingF =>
     * @return
     */
   def clearCache(contentPath: ContentPath): M[Iterable[(ResolvedRepo,String)]] = {
-    val cachePrefix = cacheRoot.absolutePath
     val path = cacheFile(contentPath)
     val isDirectory = java.nio.file.Files.isDirectory(path.asNioPath)
     val (directory, filter) =
@@ -277,7 +276,7 @@ trait ResolvedRepo { self: LoggingF =>
       .entries
       .map(_.filter(filter))
       .flatMap { entries =>
-        val response = entries.map(e => this -> e.absolutePath.substring(cachePrefix.length))
+        val response = entries.map(e => this -> e.absolutePath)
         entries
           .map(_.delete)
           .sequencePar

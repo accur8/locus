@@ -149,7 +149,7 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
     resolvedRepo
       .clearCache(path)
       .flatMap { paths =>
-        val responseBody = paths.map(p => s"${p._1.name}/${p._2}").mkString("\n")
+        val responseBody = paths.map(p => s"${p._1.name} : ${p._2}").mkString("\n")
         responseFromString(responseBody, None)
       }
   }
