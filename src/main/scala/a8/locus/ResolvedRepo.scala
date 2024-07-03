@@ -10,7 +10,7 @@ import a8.locus.ResolvedModel.RepoContent.{CacheFile, TempFile}
 import a8.shared.ZFileSystem
 import ZFileSystem.SymlinkHandlerDefaults.follow
 import a8.locus.ChecksumHandler.{Checksum, ValidationResult}
-import a8.locus.ResolvedRepo.RepoLoggingService
+import a8.locus.ResolvedRepo.{CacheLocation, RepoLoggingService}
 import a8.shared.ZFileSystem.File
 import wvlet.log.LogLevel
 import zio.{Task, Trace, UIO}
@@ -18,6 +18,55 @@ import zio.{Task, Trace, UIO}
 import scala.collection.mutable
 
 object ResolvedRepo {
+
+  case class CacheLocation(contentPath: ContentPath, file: File, repo: ResolvedRepo) {
+    def write(content: String): M[Unit] = {
+      if ( content.length > 0 ) {
+        for {
+          repoLoggingService <- zservice[RepoLoggingService]
+          _ <- file.deleteIfExists
+          _ <- file.write(content)
+          _ <- repoLoggingService.trace(s"wrote ${file.absolutePath}")
+        } yield ()
+      } else {
+        loggerF.debug(s"skipping writing 0 byte cache file ${this}")
+      }
+    }
+
+    def toCacheFile: M[Option[CacheFile]] = {
+      file
+        .existsAsFile
+        .flatMap {
+          case true =>
+            file
+              .size
+              .flatMap {
+                case 0 =>
+                  loggerF.warn(s"deleting 0 byte cache file ${this}")
+                    .asZIO(file.delete.as(false))
+                case _ =>
+                  zsucceed(true)
+              }
+          case false =>
+            zsucceed(false)
+        }
+        .map(_.toOption(CacheFile(file, repo)))
+        .traceDebug(s"${repo.name}.cachedContent(${contentPath}) - ${file.absolutePath} - ${this}")
+    }
+
+    def absolutePath: String = file.absolutePath
+    def copyFrom(from: File): M[Unit] =
+      from
+        .size
+        .filterOrElse(_ > 0)(loggerF.warn(s"copyFrom zero size file from=${from}  ${this} no copy performed"))
+        .flatMap { _ =>
+          for {
+            _ <- file.parent.makeDirectories
+            _ <- file.deleteIfExists
+            _ <- from.copyTo(file)
+          } yield ()
+        }
+  }
 
   val standardRetryCount = 1
 
@@ -193,18 +242,17 @@ trait ResolvedRepo { self: LoggingF =>
       case _ if ChecksumHandler.isChecksum(path) =>
         zunit
       case Some(TempFile(tempFile, repo, checksums)) if resolvedModel.isCachable(path) =>
-        val cacheFile = repo.cacheFile(path)
+        val cacheLocation = repo.cacheLocation(path)
         for {
           repoLoggingService <- zservice[RepoLoggingService]
-          _ <- cacheFile.parent.makeDirectories
-          _ <- tempFile.copyTo(cacheFile)
-          _ <- repoLoggingService.trace(s"wrote ${cacheFile.absolutePath}")
+          _ <- cacheLocation.copyFrom(tempFile)
+          _ <- repoLoggingService.trace(s"wrote ${cacheLocation.absolutePath}")
           _ <-
             checksums
               .map { checksum =>
-                val checksumCacheFile = repo.cacheFile(path.appendExtension(checksum.extension))
-                checksumCacheFile.write(checksum.value)
-                  .asZIO(repoLoggingService.trace(s"wrote ${checksumCacheFile.absolutePath}"))
+                repo
+                  .cacheLocation(path.appendExtension(checksum.extension))
+                  .write(checksum.value)
               }
               .sequencePar
         } yield()
@@ -212,14 +260,16 @@ trait ResolvedRepo { self: LoggingF =>
         zunit
     }
 
-  def cacheFile(contentPath: ContentPath): File = {
-    contentPath
-      .parts
-      .dropRight(1)
-      .foldLeft(cacheRoot) { case (dir, part) =>
-        dir.subdir(part)
-      }
-      .file(contentPath.last)
+  def cacheLocation(contentPath: ContentPath): CacheLocation = {
+    val file =
+      contentPath
+        .parts
+        .dropRight(1)
+        .foldLeft(cacheRoot) { case (dir, part) =>
+          dir.subdir(part)
+        }
+        .file(contentPath.last)
+    CacheLocation(contentPath, file, this)
   }
 
   def validateChecksums(contentFile: File, contentPath: ContentPath): M[Seq[Checksum]] = {
@@ -244,14 +294,10 @@ trait ResolvedRepo { self: LoggingF =>
     }
   }
 
-
   def cachedContent(contentPath: ContentPath): M[Option[CacheFile]] = {
     if ( resolvedModel.isCachable(contentPath) ) {
-      val cacheFile0 = cacheFile(contentPath)
-      cacheFile0
-        .existsAsFile
-        .map(_.toOption(CacheFile(cacheFile0, this)))
-        .traceDebug(s"${name}.cachedContent(${contentPath}) - ${cacheFile0.absolutePath}")
+      cacheLocation(contentPath)
+        .toCacheFile
     } else {
       zsucceed(None)
     }
@@ -263,7 +309,7 @@ trait ResolvedRepo { self: LoggingF =>
     * @return
     */
   def clearCache(contentPath: ContentPath): M[Iterable[(ResolvedRepo,String)]] = {
-    val path = cacheFile(contentPath)
+    val path = cacheLocation(contentPath).file
     val isDirectory = java.nio.file.Files.isDirectory(path.asNioPath)
     val (directory, filter) =
       if ( isDirectory ) {
