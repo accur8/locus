@@ -29,3 +29,5 @@ project/project
 project/target
 data/
 temp
+/.metals
+/.vscode

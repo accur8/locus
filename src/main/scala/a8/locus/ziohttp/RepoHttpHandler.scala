@@ -188,7 +188,7 @@ case class RepoHttpHandler(resolvedModel: ResolvedModel, resolvedRepo: ResolvedR
   def checksumHeaders(file: ZFileSystem.File, contentType: Option[ContentType]): M[Headers] =
     ChecksumHandler
       .responseHeaders
-      .map(cs => cs.digest(file).map(dr => Headers(s"x-checksum-${cs.extension}", dr.asHexString)))
+      .map(cs => cs.digestFileContents(file).map(dr => Headers(s"x-checksum-${cs.extension}", dr.asHexString)))
       .sequencePar
       .map { headers =>
         headers.foldLeft(Headers(contentType.orElse(defaultContentType(file))))(_ ++ _)

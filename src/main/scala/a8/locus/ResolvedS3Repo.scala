@@ -82,7 +82,7 @@ case class ResolvedS3Repo(
   }
 
   def calculateMd5(file: File): M[ChecksumHandler.DigestResults] =
-    ChecksumHandler.Md5.digest(file)
+    ChecksumHandler.Md5.digestFileContents(file)
 
   override def put(contentPath: ContentPath, contentFile: File): M[PutResult] = {
     val key = keyPrefix.append(contentPath).toString

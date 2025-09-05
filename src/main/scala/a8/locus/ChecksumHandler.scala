@@ -1,7 +1,7 @@
 package a8.locus
 
 
-import a8.locus.ChecksumHandler.{Checksum, ValidationResult}
+import a8.locus.ChecksumHandler.{Checksum, DigestResults, ValidationResult}
 import a8.locus.Dsl.UrlPath
 import a8.locus.ResolvedModel.{ContentGenerator, DirectoryEntry, RepoContent, contentGenerators}
 import a8.locus.ResolvedModel.RepoContent.{CacheFile, GeneratedContent, TempFile}
@@ -17,6 +17,8 @@ import zio.{Chunk, ZIO}
 
 import java.time.Month
 import ziohttp.model.*
+
+import java.io.ByteArrayInputStream
 
 object ChecksumHandler {
 
@@ -42,23 +44,19 @@ object ChecksumHandler {
             .withInputStream(fn(_))
         DigestResults(Chunk.fromArray(rawBytes))
       }
+    def runDigestOnUtf8String(content: String, fn: java.io.InputStream => Array[Byte]): M[DigestResults] = {
+      zblock {
+        val utf8Bytes = content.getBytes(Utf8Charset)
+        val rawBytes = fn(new ByteArrayInputStream(utf8Bytes))
+        DigestResults(Chunk.fromArray(rawBytes))
+      }
+    }
   }
   import impl._
 
-  case object Sha256 extends ChecksumHandler("sha256", false) {
-    override def digest(content: File): M[DigestResults] =
-      runDigest(content, DigestUtils.sha256)
-  }
-
-  case object Md5 extends ChecksumHandler("md5", true) {
-    override def digest(content: File): M[DigestResults] =
-      runDigest(content, DigestUtils.md5)
-  }
-
-  case object Sha1 extends ChecksumHandler("sha1", true) {
-    override def digest(content: File): M[DigestResults] =
-      runDigest(content, DigestUtils.sha1)
-  }
+  case object Sha256 extends ChecksumHandler("sha256", false, DigestUtils.sha256)
+  case object Md5 extends ChecksumHandler("md5", true, DigestUtils.md5)
+  case object Sha1 extends ChecksumHandler("sha1", true, DigestUtils.sha1)
 
   // we do not want / need the Sha256 validator here since repos don't do Sha256
   lazy val validators = Vector(Md5, Sha1)
@@ -74,12 +72,20 @@ object ChecksumHandler {
 }
 
 
-abstract class ChecksumHandler(val extension: String, val includeInResponseHeaders: Boolean) {
+abstract class ChecksumHandler(
+  val extension: String,
+  val includeInResponseHeaders: Boolean,
+  val digestFn: java.io.InputStream => Array[Byte],
+) {
 
-  lazy val extensionLc = extension.toLowerCase
-  lazy val extensionLcWithDot = "." + extensionLc
+  lazy val extensionLc: String = extension.toLowerCase
+  lazy val extensionLcWithDot: String = "." + extensionLc
 
-  def digest(content: ZFileSystem.File): M[ChecksumHandler.DigestResults]
+  def digestStringContents(content: String): M[DigestResults] =
+    ChecksumHandler.impl.runDigestOnUtf8String(content, digestFn)
+
+  def digestFileContents(content: ZFileSystem.File): M[ChecksumHandler.DigestResults] =
+    ChecksumHandler.impl.runDigest(content, digestFn)
 
   def validate(basePath: ContentPath, contentFile: ZFileSystem.File, resolvedRepo: ResolvedRepo): M[Option[ValidationResult]] = {
     val checksumPath = basePath.appendExtension(extension)
@@ -105,7 +111,7 @@ abstract class ChecksumHandler(val extension: String, val includeInResponseHeade
   def isChecksumValid(contentFile: ZFileSystem.File, checksumFile: ZFileSystem.File): M[ValidationResult] =
     for {
       rawExpectedChecksum <- checksumFile.readAsString
-      actualDigestResults <- digest(contentFile)
+      actualDigestResults <- digestFileContents(contentFile)
     } yield {
       val expectedChecksum = scrubChecksum(rawExpectedChecksum)
       val actualChecksum = scrubChecksum(actualDigestResults.asHexString)

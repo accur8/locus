@@ -71,6 +71,9 @@ object ResolvedModel extends LoggingF {
     def generateHtml(repo: ResolvedRepo, content: String): GeneratedContent =
       GeneratedContent(repo, ContentTypes.html.some, content)
 
+    def generateXml(repo: ResolvedRepo, content: String): GeneratedContent =
+      GeneratedContent(repo, ContentTypes.xml.some, content)
+
   }
 
   enum PutResult:

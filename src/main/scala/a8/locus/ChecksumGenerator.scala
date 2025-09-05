@@ -40,20 +40,37 @@ object ChecksumGenerator extends ContentGenerator {
     val effectOpt: Option[ZIO[Env, Throwable, Option[RepoContent]]] =
       checksumForPath(checksumPath, resolvedRepo).flatMap { checksumHandler =>
         checksumPath.dropExtension.map { basePath =>
-          resolveContentAsFile(basePath, resolvedRepo).flatMap {
-            case None =>
-              zsucceed(None)
-            case Some(contentFile) =>
-              ChecksumHandler
-                .Sha256
-                .digest(contentFile)
-                .map(digest =>
-                  GeneratedContent(
-                    resolvedRepo,
-                    contentType = None,
-                    content = digest.asHexString,
-                  ).some
-                )
+          resolvedRepo
+            .resolveContent(basePath, true)
+            .flatMap {
+              case None | Some(RepoContent.Redirect(_, _)) =>
+                zsucceed(None)
+              case Some(repoContent) =>
+                val effect: M[ChecksumHandler.DigestResults] =
+                  repoContent match {
+                    case RepoContent.Redirect(_, _) =>
+                      sys.error("unreachable")
+                    case RepoContent.GeneratedFile(generatedFile, _, _) =>
+                      checksumHandler
+                        .digestFileContents(generatedFile)
+                    case RepoContent.GeneratedContent(_, _, content) =>
+                      checksumHandler
+                        .digestStringContents(content)
+                    case RepoContent.CacheFile(cacheFile, _) =>
+                      checksumHandler
+                        .digestFileContents(cacheFile)
+                    case RepoContent.TempFile(tempFile, _, _) =>
+                      checksumHandler
+                        .digestFileContents(tempFile)
+                  }
+                effect
+                  .map(digest =>
+                    GeneratedContent(
+                      resolvedRepo,
+                      contentType = None,
+                      content = digest.asHexString,
+                    ).some
+                  )
           }
         }
       }
@@ -61,21 +78,23 @@ object ChecksumGenerator extends ContentGenerator {
   }
 
 
-  def resolveContentAsFile(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[File]] =
-    resolvedRepo
-      .resolveContent(contentPath, false)
-      .map {
-        case Some(TempFile(file, _, _)) =>
-          Some(file)
-        case Some(CacheFile(file, _)) =>
-          Some(file)
-        case _ =>
-          None
-      }
+//  def resolveContentAsFile(contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[File]] =
+//    resolvedRepo
+//      .resolveContent(contentPath, true)
+//      .map {
+//        case Some(TempFile(file, _, _)) =>
+//          Some(file)
+//        case Some(CacheFile(file, _)) =>
+//          Some(file)
+//        case _ =>
+//          None
+//      }
+
+  val extensionsToGenerateFor = List(".jar", ".pom", ".xml").map(_.toLowerCase)
 
   def canGenerateFor(directoryEntry: DirectoryEntry): Boolean = {
     val name = directoryEntry.name.toLowerCase
-    name.endsWith(".jar") || name.endsWith(".pom")
+    extensionsToGenerateFor.exists(e => name.endsWith(e))
   }
 
   override def extraEntries(entries: Iterable[DirectoryEntry], resolvedRepo: ResolvedRepo): Iterable[DirectoryEntry] = {

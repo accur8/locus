@@ -60,7 +60,7 @@ object GenerateMavenMetadata extends ContentGenerator {
         val lastUpdated: DateTime = sortedEntries.last._2
         val lastUpdatedStr: String = f"${lastUpdated.year}%04d${lastUpdated.month.getValue}%02d${lastUpdated.day}%02d${lastUpdated.hour}%02d${lastUpdated.minute}%02d${lastUpdated.second}%02d" // ??? // 20200529170049
 
-        RepoContent.generateHtml(
+        RepoContent.generateXml(
           resolvedRepo,
           s"""<?xml version="1.0" encoding="UTF-8"?>
 
@@ -72,7 +72,7 @@ object GenerateMavenMetadata extends ContentGenerator {
       <latest>${latest}</latest>
       <release>${latest}</release>
       <versions>
-  ${sortedEntries.map(v => s"      <version>${v._3}</version>").mkString("\n")}
+${sortedEntries.map(v => s"        <version>${v._3}</version>").mkString("\n")}
       </versions>
     </versioning>
     <lastUpdated>${lastUpdatedStr}</lastUpdated>

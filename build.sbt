@@ -63,3 +63,25 @@ lazy val locus =
 
 
    
+lazy val copyRuntimeJars = taskKey[File]("Copy all runtime jars to target/deploy")
+
+copyRuntimeJars := {
+  import sbt.io.IO
+
+  val outDir = target.value / "deploy"
+  IO.delete(outDir)
+  IO.createDirectory(outDir)
+
+  // Build the main jar first
+  val appJar   = (Compile / packageBin).value
+
+  // Grab all runtime classpath jars (managed + unmanaged)
+  val runtimeJars =
+    (Runtime / fullClasspath).value.map(_.data).filter(f => f.isFile && f.getName.endsWith(".jar"))
+
+  val all = (runtimeJars :+ appJar).distinct
+  IO.copy(all.map(f => f -> (outDir / f.getName)))
+
+  streams.value.log.info(s"Copied ${all.size} jars to ${outDir.getAbsolutePath}")
+  outDir
+}
