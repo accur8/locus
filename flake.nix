@@ -5,11 +5,14 @@
     # Latest nixpkgs – needed because the CLI is still moving fast
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    # numtide devshell
+    devshell.url = "github:numtide/devshell";
+
     # Always‑up‑to‑date package for Claude Code (bundles its own Node runtime)
     claude-code.url = "github:sadjow/claude-code-nix";
   };
 
-  outputs = { self, nixpkgs, claude-code, ... }:
+  outputs = { self, nixpkgs, claude-code, devshell, ... }:
     let
       # Pick your host; change to "aarch64-linux", "x86_64-darwin", … if needed
       system = "aarch64-darwin";
@@ -17,6 +20,7 @@
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;      # CLI is proprietary
+        overlays = [ devshell.overlays.default ];
       };
 
       my-java = pkgs.zulu17;
@@ -38,7 +42,9 @@
       packages.${system}.default = pkgs.claude-code;
 
       # Dev‑shell so the binary is on $PATH when you `nix develop`
-      devShells.${system}.default = pkgs.mkShell {
+      devShells.${system}.default = pkgs.devshell.mkShell {
+        name = "locus";
+
         packages = [
           pkgs.claude-code
           pkgs.scala-next
