@@ -1,21 +1,45 @@
 {
   "nodes": {
-    "claude-code": {
+    "a8-scripts": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": [
+          "nix-pins",
+          "nixpkgs"
+        ]
       },
       "locked": {
-        "lastModified": 1752883464,
-        "narHash": "sha256-3naa2ALOXHBZZfC3zqNAWCEamRdwgq2NUjK+fjN/F48=",
-        "owner": "sadjow",
-        "repo": "claude-code-nix",
-        "rev": "e208f47ed87267e6bb0d4261f174e1db699972ec",
+        "lastModified": 1758491995,
+        "narHash": "sha256-ko+68F+VVPfPZtBtVD4gFT+dzmaN6VakaZ0vmAk4HGE=",
+        "owner": "fizzy33",
+        "repo": "a8-scripts",
+        "rev": "5c8304294424ad2ac0e0307dfc85a392577042c1",
         "type": "github"
       },
       "original": {
-        "owner": "sadjow",
-        "repo": "claude-code-nix",
+        "owner": "fizzy33",
+        "repo": "a8-scripts",
+        "type": "github"
+      }
+    },
+    "devshell": {
+      "inputs": {
+        "nixpkgs": [
+          "nix-pins",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1741473158,
+        "narHash": "sha256-kWNaq6wQUbUMlPgw8Y+9/9wP0F8SHkjy24/mN3UAppg=",
+        "owner": "numtide",
+        "repo": "devshell",
+        "rev": "7c9e793ebe66bcba8292989a68c0419b737a22a0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "devshell",
         "type": "github"
       }
     },
@@ -37,29 +61,33 @@
         "type": "github"
       }
     },
-    "nixpkgs": {
+    "nix-pins": {
+      "inputs": {
+        "a8-scripts": "a8-scripts",
+        "devshell": "devshell",
+        "nixpkgs": "nixpkgs"
+      },
       "locked": {
-        "lastModified": 1752809442,
-        "narHash": "sha256-7fALxZGWDspRe79LaDwIdmkDl568Cphfvr83PGCXUUQ=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "e821e03193486359aa942372be2d9c1f377b7a18",
-        "type": "github"
+        "lastModified": 1759109308,
+        "narHash": "sha256-ifoenf4FOH4o1IZMzQIJjOj4fKac4E2bHABK2Tq23tM=",
+        "ref": "refs/heads/main",
+        "rev": "a6002a2f6f6947c48ba42ded3393e9f4521ba3c6",
+        "revCount": 29,
+        "type": "git",
+        "url": "ssh://git@git.accur8.net/a8/nix-pins"
       },
       "original": {
-        "owner": "NixOS",
-        "ref": "nixpkgs-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
+        "type": "git",
+        "url": "ssh://git@git.accur8.net/a8/nix-pins"
       }
     },
-    "nixpkgs_2": {
+    "nixpkgs": {
       "locked": {
-        "lastModified": 1747744144,
-        "narHash": "sha256-W7lqHp0qZiENCDwUZ5EX/lNhxjMdNapFnbErcbnP11Q=",
+        "lastModified": 1758690382,
+        "narHash": "sha256-NY3kSorgqE5LMm1LqNwGne3ZLMF2/ILgLpFr1fS4X3o=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "2795c506fe8fb7b03c36ccb51f75b6df0ab2553f",
+        "rev": "e643668fd71b949c53f8626614b21ff71a07379d",
         "type": "github"
       },
       "original": {
@@ -71,8 +99,15 @@
     },
     "root": {
       "inputs": {
-        "claude-code": "claude-code",
-        "nixpkgs": "nixpkgs_2"
+        "devshell": [
+          "nix-pins",
+          "devshell"
+        ],
+        "nix-pins": "nix-pins",
+        "nixpkgs": [
+          "nix-pins",
+          "nixpkgs"
+        ]
       }
     },
     "systems": {
