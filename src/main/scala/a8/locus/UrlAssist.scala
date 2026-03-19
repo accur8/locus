@@ -27,6 +27,8 @@ import java.io.ByteArrayInputStream
   */
 object UrlAssist {
 
+  private lazy val logger = a8.common.logging.LoggerFactory.logger(getClass.getName)
+
   case class Response(
     status: Int,
     statusMessage: String,
@@ -188,7 +190,7 @@ object UrlAssist {
             zsucceed(response)
           }
         } finally {
-          trylogo(s"swallowing error while closing url conn to ${url}")(conn.disconnect()): @scala.annotation.nowarn
+          trylogo(s"swallowing error while closing url conn to ${url}")(conn.disconnect())(logger): @scala.annotation.nowarn
         }
       }
     )

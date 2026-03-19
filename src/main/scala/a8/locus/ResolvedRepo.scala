@@ -1,7 +1,7 @@
 package a8.locus
 
 
-import a8.shared.app.{LoggerF, LoggingF}
+import a8.common.logging.{Level, LoggerF, LoggingF}
 import a8.locus.ResolvedModel.*
 import ziohttp.model.*
 import a8.locus.Config.*
@@ -12,7 +12,6 @@ import ZFileSystem.SymlinkHandlerDefaults.follow
 import a8.locus.ChecksumHandler.{Checksum, ValidationResult}
 import a8.locus.ResolvedRepo.{CacheLocation, RepoLoggingService}
 import a8.shared.ZFileSystem.File
-import wvlet.log.LogLevel
 import zio.{Task, Trace, UIO}
 
 import scala.collection.mutable
@@ -78,7 +77,7 @@ object ResolvedRepo {
       new RepoLoggingService:
         val started = System.currentTimeMillis()
         var logs_ = List.empty[String]
-        def log(level: LogLevel, message: String, throwable: Throwable)(implicit loggerF: LoggerF, trace: Trace): Task[Unit] = {
+        def log(level: Level, message: String, throwable: Throwable)(implicit loggerF: LoggerF, trace: Trace): Task[Unit] = {
           zblock {
             this.synchronized {
               val delta = System.currentTimeMillis() - started
@@ -92,22 +91,22 @@ object ResolvedRepo {
   }
   trait RepoLoggingService {
 
-    def log(level: LogLevel, message: String, throwable: Throwable)(implicit loggerF: LoggerF, trace: Trace): Task[Unit]
+    def log(level: Level, message: String, throwable: Throwable)(implicit loggerF: LoggerF, trace: Trace): Task[Unit]
 
     def trace(message: String, throwable: Throwable = null)(implicit loggerF: LoggerF, trace: Trace): zio.Task[Unit] =
-      log(LogLevel.TRACE, message, throwable)
+      log(Level.Trace, message, throwable)
 
     def debug(message: String, throwable: Throwable = null)(implicit loggerF: LoggerF, trace: Trace): zio.Task[Unit] =
-      log(LogLevel.DEBUG, message, throwable)
+      log(Level.Debug, message, throwable)
 
     def info(message: String, throwable: Throwable = null)(implicit loggerF: LoggerF, trace: Trace): zio.Task[Unit] =
-      log(LogLevel.INFO, message, throwable)
+      log(Level.Info, message, throwable)
 
     def warn(message: String, throwable: Throwable = null)(implicit loggerF: LoggerF, trace: Trace): zio.Task[Unit] =
-      log(LogLevel.WARN, message, throwable)
+      log(Level.Warn, message, throwable)
 
     def error(message: String, throwable: Throwable = null)(implicit loggerF: LoggerF, trace: Trace): zio.Task[Unit] =
-      log(LogLevel.ERROR, message, throwable)
+      log(Level.Error, message, throwable)
 
     def logs: zio.UIO[Iterable[String]]
 

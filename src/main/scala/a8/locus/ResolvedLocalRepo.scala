@@ -3,7 +3,7 @@ package a8.locus
 
 import a8.shared.ZFileSystem
 import a8.shared.ZFileSystem.{Directory, File}
-import a8.shared.app.LoggingF
+import a8.common.logging.LoggingF
 import ZFileSystem.SymlinkHandlerDefaults.follow
 import a8.locus.ziohttp.model.*
 import SharedImports.*

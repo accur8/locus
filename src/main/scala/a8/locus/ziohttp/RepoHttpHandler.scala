@@ -7,7 +7,7 @@ import a8.locus.{ChecksumHandler, ResolvedModel, ResolvedRepo}
 import a8.locus.ResolvedModel.PutResult
 import a8.locus.ResolvedModel.RepoContent.TempFile
 import a8.locus.ResolvedRepo.RepoLoggingService
-import a8.shared.app.LoggingF
+import a8.common.logging.LoggingF
 import org.apache.commons.net.util.SubnetUtils
 import org.slf4j.MDC
 

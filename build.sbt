@@ -16,8 +16,8 @@
 
 val appVersion = a8.sbt_a8.versionStamp(file("."))
 
-val scalaLibVersion = "3.2.2"
-val versionsVersion = "1.0.0-20230502_1307_master"
+val scalaLibVersion = "3.3.0"
+val versionsVersion = "1.0.0-20260319_1107_master"
 
 Global / scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 
@@ -43,9 +43,10 @@ lazy val locus =
   Common
     .jvmProject("a8-locus", file("."), "locus")
     .settings(
+      Common.generateFullDependencies := true,
       libraryDependencies ++= Seq(
 
-        compilerPlugin("com.github.ghik" % "zerowaste" % "0.2.6" cross CrossVersion.full),
+        compilerPlugin("com.github.ghik" % "zerowaste" % "0.2.12" cross CrossVersion.full),
 
         "dev.zio" %% "zio-http" % "3.0.0-RC1",
         "commons-net" % "commons-net" % "3.9.0",

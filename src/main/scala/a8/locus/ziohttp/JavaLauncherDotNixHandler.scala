@@ -5,7 +5,7 @@ import a8.locus.SharedImports.*
 import a8.locus.ziohttp.JavaLauncherDotNixHandler.LauncherPath
 import a8.locus.ziohttp.ResolveDependencyTreeHandler.RequestHandler
 import a8.shared.CompanionGen
-import a8.shared.app.LoggingF
+import a8.common.logging.LoggingF
 import a8.versions.RepositoryOps
 import a8.versions.model.{ArtifactResponse, BranchName, ResolutionRequest}
 import a8.versions.GenerateJavaLauncherDotNix
@@ -65,12 +65,16 @@ case class JavaLauncherDotNixHandler(
   ) {
 
     def run: M[HttpResponse] = {
-      GenerateJavaLauncherDotNix(parms)
+      GenerateJavaLauncherDotNix(parms, None)
         .buildDescriptionT
         .flatMap { buildDescription =>
           path
             .effect(buildDescription)
         }
+        .provideSome[Env](
+          io.accur8.neodeploy.systemstate.SystemStateModel.PathLocator.layer,
+          zio.ZLayer.succeed(io.accur8.neodeploy.model.LocalRootDirectory(java.io.File.createTempFile("locus", "tmp").getParent)),
+        )
 
     }
 

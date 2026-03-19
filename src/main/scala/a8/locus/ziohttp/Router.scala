@@ -3,7 +3,7 @@ package a8.locus.ziohttp
 import a8.locus.Config.{LocusConfig, SubnetManager}
 import a8.locus.ResolvedModel
 import a8.locus.ResolvedRepo.RepoLoggingService
-import a8.shared.app.{LoggerF, LoggingF}
+import a8.common.logging.{LoggerF, LoggingF}
 import zio.{Chunk, Layer, Task, Trace, UIO, ZIO}
 import zio.http.{Body, Http, HttpApp, HttpError, Request, Response, Status}
 import a8.locus.ziohttp.model.*

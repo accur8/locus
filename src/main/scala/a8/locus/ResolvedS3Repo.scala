@@ -2,7 +2,7 @@ package a8.locus
 
 
 import a8.locus.ResolvedModel.{DirectoryEntry, DownloadResult, PutResult, RepoContent}
-import a8.shared.app.{Logging, LoggingF}
+import a8.common.logging.{Logging, LoggingF}
 import ziohttp.model.*
 import SharedImports.*
 import a8.locus.Config.S3Config

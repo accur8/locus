@@ -16,6 +16,8 @@ import scala.util.Try
 
 object Config {
 
+  private lazy val logger = a8.common.logging.LoggerFactory.logger(getClass.getName)
+
   object Repo {
     implicit val format: JsonTypedCodec[Repo, ast.JsObj] =
       UnionCodecBuilder[Repo]

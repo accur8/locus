@@ -18,7 +18,7 @@ import a8.locus.model.DateTime
 import a8.locus.ziohttp.ZHttpHandler
 import ziohttp.model.{M, *}
 import a8.shared.ZFileSystem
-import a8.shared.app.{Logging, LoggingF}
+import a8.common.logging.{Logging, LoggingF}
 import zio.stream.ZStream
 
 import java.time.LocalDateTime

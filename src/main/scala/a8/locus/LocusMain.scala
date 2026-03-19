@@ -7,14 +7,13 @@ import a8.locus.model.*
 import a8.locus.ziohttp.Router
 import a8.locus.{ResolvedModel, ziohttp}
 import a8.shared.ConfigMojo
-import a8.shared.app.BootstrapConfig.UnifiedLogLevel
+import a8.common.logging.Level
 import a8.shared.app.BootstrappedIOApp.BootstrapEnv
-import a8.shared.app.{BootstrappedIOApp, LoggingF}
+import a8.shared.app.BootstrappedIOApp
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.awscore.client.builder.{AwsClientBuilder, AwsDefaultClientBuilder}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
-import wvlet.log.LogLevel
 import zio.http.HttpError.{BadRequest, InternalServerError}
 import zio.http.Method.{GET, POST}
 import zio.http.*
@@ -27,9 +26,7 @@ object LocusMain extends BootstrappedIOApp {
 
   type Env = Any
 
-  override def defaultLogLevel = UnifiedLogLevel(wvlet.log.LogLevel.TRACE)
-
-  override def initialLogLevels: Iterable[(String, LogLevel)] =
+  override def initialLogLevels: Iterable[(String, Level)] =
     super.initialLogLevels ++
       Seq(
         "nodebuglogging",
@@ -38,7 +35,7 @@ object LocusMain extends BootstrappedIOApp {
         "jdk.event",
         "com.amazonaws",
         "javax.xml.bind",
-      ).map(_ -> LogLevel.INFO)
+      ).map(_ -> Level.Info)
 
 
   override lazy val defaultAppName: String = "locus.server"

@@ -7,7 +7,7 @@ import a8.locus.ResolvedModel
 import a8.locus.ResolvedRepo
 import a8.locus.SharedImports.*
 import a8.locus.ziohttp.model.{FullPath, M}
-import a8.shared.app.{Logging, LoggingF}
+import a8.common.logging.{Logging, LoggingF}
 import a8.sync.http
 import io.accur8.neodeploy.resolvedmodel.ResolvedRepository
 import org.slf4j.MDC

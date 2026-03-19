@@ -2,8 +2,6 @@ package a8.locus.model
 
 import a8.shared.json.ast.JsStr
 import a8.shared.json.{JsonCodec, JsonTypedCodec}
-import wvlet.log.Logger
-
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDateTime, Month, ZoneId, ZoneOffset}
 import java.util.GregorianCalendar

@@ -16,7 +16,7 @@ import zio.http.{Body, Headers, Method, Request}
 
 import java.nio.charset.Charset
 import a8.locus.SharedImports.*
-import a8.shared.app.LoggingF
+import a8.common.logging.LoggingF
 import model.*
 
 object ResolveDependencyTreeHandler

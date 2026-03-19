@@ -2,7 +2,7 @@ package a8.locus
 
 import a8.locus.ResolvedRepo.RepoLoggingService
 import a8.locus.ziohttp.model.M
-import a8.shared.app.Logging
+import a8.common.logging.Logging
 import a8.shared.json.ast.JsStr
 import a8.shared.json.{JsonCodec, JsonTypedCodec}
 import zio.prelude.Equal
@@ -61,7 +61,7 @@ object SharedImports extends a8.shared.SharedImports with Logging {
       * wraps the effect to log the start of the effect and
       * it's success value or its error value
       */
-    def traceDebug(context: String, maxLength: Int = 256)(implicit loggerF: a8.shared.app.LoggerF, trace: zio.Trace): M[A] =
+    def traceDebug(context: String, maxLength: Int = 256)(implicit loggerF: a8.common.logging.LoggerF, trace: zio.Trace): M[A] =
       zservice[RepoLoggingService].flatMap( repoLoggingService =>
         repoLoggingService.debug(s"start ${context}")
           .flatMap(_ => effect)
