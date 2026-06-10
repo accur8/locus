@@ -31,3 +31,5 @@ data/
 temp
 /.metals
 /.vscode
+
+/.locus-recon/
