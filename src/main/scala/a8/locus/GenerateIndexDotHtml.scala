@@ -72,8 +72,12 @@ object GenerateIndexDotHtml extends ContentGenerator {
       DebugAction,
     )
 
+  // lastOption.exists, not last: .last throws on the empty (root) content path.
+  // This generator is reached for the root dir listing once the maven-metadata
+  // guard above it is safe, so it must not crash there either. lastOption guards
+  // the empty case; =:= keeps the original case-insensitive compare.
   override def canGenerateFor(contentPath: ContentPath): Boolean =
-    contentPath.last =:= "index.html" || contentPath.isDirectory
+    contentPath.parts.lastOption.exists(_ =:= "index.html") || contentPath.isDirectory
 
   override def generate(context: String, contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
     val dir =

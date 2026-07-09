@@ -26,8 +26,12 @@ object GenerateMavenMetadata extends ContentGenerator {
     )
 
 
+  // lastOption.exists, not last: the root content path is empty (parts == Nil),
+  // and .last throws NoSuchElementException there -> a 500 on the repo root
+  // listing. lastOption guards the empty case; =:= keeps the original
+  // case-insensitive compare (same safe-Option idiom ChecksumGenerator uses).
   override def canGenerateFor(contentPath: ContentPath): Boolean =
-    contentPath.last =:= "maven-metadata.xml"
+    contentPath.parts.lastOption.exists(_ =:= "maven-metadata.xml")
 
 
   override def generate(context: String, contentPath: ContentPath, resolvedRepo: ResolvedRepo): M[Option[RepoContent]] = {
