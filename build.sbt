@@ -22,19 +22,31 @@ val versionsVersion = "1.0.0-20260319_1107_master"
 Global / scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 
 Global / resolvers += ("a8-repo" at Common.readRepoUrl()).withAllowInsecureProtocol(true)
-// Publish DESTINATION, not a version suffix — the stamp is IDENTICAL in both repos, only
-// the target URL differs. Default is snapshots (cheap, culled); `publishRelease` is the
-// deliberate act that puts an artifact where prod may resolve it. `resolvers` still reads
-// repo_url, so dependency RESOLUTION is unaffected. A missing repo_snapshots_url fails
-// loudly rather than silently publishing a dev build into releases.
-// See FEATURE-20260719-snapshot-build-id-scheme.
+
+// Publish DESTINATION, not a version suffix — the version stamp is IDENTICAL in both
+// repos, only the target URL differs. Default is snapshots (cheap, and culled at 60 days);
+// `publishRelease` is the deliberate act that puts an artifact where prod may resolve it.
+// `resolvers` above still reads repo_url, so dependency RESOLUTION is unaffected.
+//
+// The default target is the `repo` config itself, unchanged — /repos/all routes writes to
+// snapshots (repoForWrites), so the normal publish needs NO new configuration on any
+// machine. Only the release needs a target of its own: sent through repo_url a release
+// would silently land in snapshots and look like the release worked.
+//
+// That target is a SEPARATE repo config under the `releases` prefix — releases_url,
+// releases_realm, releases_user, releases_password — the same self-contained shape as the
+// `repo`, `locus` and `maven` prefixes (a8-versions RepoConfigPrefix). Credentials are not
+// shared across repo configs, so the releases config supplies its own below. releases_url
+// has no fallback to repo_url on purpose: a missing releases config must fail loudly
+// rather than route the release into snapshots.
 val publishToReleases = settingKey[Boolean]("publish to the releases repo instead of snapshots")
 Global / publishToReleases := false
 Global / publishTo := Some(
-  (if (publishToReleases.value) "a8-repo-releases" at Common.readRepoProperty("repo_releases_url")
-   else "a8-repo-snapshots" at Common.readRepoProperty("repo_snapshots_url"))
+  (if (publishToReleases.value) "a8-repo-releases" at Common.readRepoProperty("releases_url")
+   else "a8-repo" at Common.readRepoUrl())
     .withAllowInsecureProtocol(true)
 )
+Global / credentials ++= Common.readRepoCredentialsOpt("releases").toSeq
 addCommandAlias(
   "publishRelease",
   ";set Global / publishToReleases := true; publish; set Global / publishToReleases := false",

@@ -97,6 +97,20 @@ object Common extends a8.sbt_a8.SharedSettings with a8.sbt_a8.HaxeSettings with 
     )
   }
 
+  // A repo config is a self-contained prefixed block -- <prefix>_url, _realm, _user,
+  // _password -- the shape a8-versions RepoConfigPrefix already uses for "repo", "locus"
+  // and "maven". Credentials are NOT shared across repo configs, so each prefix supplies
+  // its own. readRepoCredentials() above is the hardwired "repo" case kept for callers.
+  // Returns None when the block is absent, so a machine that never publishes to that repo
+  // still loads the build.
+  def readRepoCredentialsOpt(prefix: String): Option[Credentials] =
+    for {
+      url <- repoProperties.get(prefix + "_url")
+      realm <- repoProperties.get(prefix + "_realm")
+      user <- repoProperties.get(prefix + "_user")
+      password <- repoProperties.get(prefix + "_password")
+    } yield Credentials(realm, new java.net.URL(url).getHost, user, password)
+
 
   
 
